@@ -1,0 +1,34 @@
+# Flutter
+apps/mobile/.dart_tool/
+apps/mobile/build/
+apps/mobile/.flutter-plugins
+apps/mobile/.flutter-plugins-dependencies
+apps/mobile/.packages
+
+# NestJS
+apps/api/node_modules/
+apps/api/dist/
+apps/ai-worker/node_modules/
+apps/ai-worker/dist/
+packages/shared-types/node_modules/
+packages/shared-types/dist/
+
+# pnpm
+node_modules/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+infra/docker/data/
