@@ -24,5 +24,13 @@
         "supabase:status": "npx supabase status --workdir infra/supabase",
         "dev:infra": "pnpm docker:up && pnpm supabase:start",
         "dev:infra:stop": "pnpm docker:down && pnpm supabase:stop"
+    },
+    "pnpm": {
+        "onlyBuiltDependencies": [
+            "@prisma/engines",
+            "prisma",
+            "@nestjs/core",
+            "unrs-resolver"
+        ]
     }
 }
