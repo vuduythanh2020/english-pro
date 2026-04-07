@@ -1,0 +1,28 @@
+{
+    "name": "english-pro",
+    "version": "0.0.1",
+    "private": true,
+    "description": "AI-powered English speaking practice for Vietnamese kids",
+    "scripts": {
+        "api:dev": "pnpm --filter english-pro-api start:dev",
+        "api:build": "pnpm --filter english-pro-api build",
+        "api:lint": "pnpm --filter english-pro-api lint",
+        "api:test": "pnpm --filter english-pro-api test",
+        "worker:dev": "pnpm --filter english-pro-ai-worker start:dev",
+        "worker:build": "pnpm --filter english-pro-ai-worker build",
+        "worker:lint": "pnpm --filter english-pro-ai-worker lint",
+        "shared:build": "pnpm --filter @english-pro/shared-types build",
+        "build:all": "pnpm -r build",
+        "lint:all": "pnpm -r lint",
+        "test:all": "pnpm -r test",
+        "docker:up": "docker compose -f infra/docker/docker-compose.dev.yml up -d",
+        "docker:down": "docker compose -f infra/docker/docker-compose.dev.yml down",
+        "docker:logs": "docker compose -f infra/docker/docker-compose.dev.yml logs -f",
+        "docker:reset": "docker compose -f infra/docker/docker-compose.dev.yml down -v && docker compose -f infra/docker/docker-compose.dev.yml up -d",
+        "supabase:start": "npx supabase start --workdir infra/supabase",
+        "supabase:stop": "npx supabase stop --workdir infra/supabase",
+        "supabase:status": "npx supabase status --workdir infra/supabase",
+        "dev:infra": "pnpm docker:up && pnpm supabase:start",
+        "dev:infra:stop": "pnpm docker:down && pnpm supabase:stop"
+    }
+}

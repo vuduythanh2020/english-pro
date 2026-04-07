@@ -1,0 +1,29 @@
+# Docker Compose for local development - Redis services
+# Supabase services are managed via Supabase CLI (npx supabase start)
+# See infra/docker/README.md for full setup instructions
+
+networks:
+  english-pro-dev:
+    driver: bridge
+
+volumes:
+  redis_data:
+    driver: local
+
+services:
+  redis:
+    image: redis:7.2-alpine
+    container_name: english-pro-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory ${REDIS_MAX_MEMORY:-256mb} --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: "no"  # Dev environment: manual start only via pnpm docker:up
+    networks:
+      - english-pro-dev

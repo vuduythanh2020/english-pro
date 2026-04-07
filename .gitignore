@@ -32,3 +32,6 @@ Thumbs.db
 
 # Docker
 infra/docker/data/
+
+# Supabase CLI
+.supabase/

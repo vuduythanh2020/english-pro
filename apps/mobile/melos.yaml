@@ -2,7 +2,7 @@ name: english_pro
 repository: https://github.com/englishpro/english-pro
 
 packages:
-  - apps/mobile/**
+  - .
 
 command:
   bootstrap:
