@@ -1,0 +1,98 @@
+/// Domain exception types for the application.
+///
+/// These exceptions are translated from Dio HTTP errors
+/// by the `ErrorInterceptor` and consumed by repositories/blocs.
+sealed class AppException implements Exception {
+  const AppException({required this.message, this.statusCode});
+
+  /// Human-readable error message.
+  final String message;
+
+  /// HTTP status code (if applicable).
+  final int? statusCode;
+
+  @override
+  String toString() =>
+      '${describeIdentity(this)}'
+      '(message: $message, statusCode: $statusCode)';
+
+  /// Returns the runtime identity without relying on `runtimeType.toString`.
+  String describeIdentity(AppException e) {
+    return switch (e) {
+      NetworkException() => 'NetworkException',
+      ServerException() => 'ServerException',
+      UnauthorizedException() => 'UnauthorizedException',
+      ForbiddenException() => 'ForbiddenException',
+      NotFoundException() => 'NotFoundException',
+      ValidationException() => 'ValidationException',
+      TimeoutException() => 'TimeoutException',
+      UnknownException() => 'UnknownException',
+    };
+  }
+}
+
+/// No internet connection.
+class NetworkException extends AppException {
+  const NetworkException({super.message = 'No internet connection'});
+}
+
+/// Server error (5xx).
+class ServerException extends AppException {
+  const ServerException({
+    super.message = 'Internal server error',
+    super.statusCode,
+  });
+}
+
+/// Unauthorized (401).
+class UnauthorizedException extends AppException {
+  const UnauthorizedException({
+    super.message = 'Unauthorized',
+    super.statusCode = 401,
+  });
+}
+
+/// Forbidden (403).
+class ForbiddenException extends AppException {
+  const ForbiddenException({
+    super.message = 'Forbidden',
+    super.statusCode = 403,
+  });
+}
+
+/// Not found (404).
+class NotFoundException extends AppException {
+  const NotFoundException({
+    super.message = 'Resource not found',
+    super.statusCode = 404,
+  });
+}
+
+/// Validation error (422) with optional details.
+class ValidationException extends AppException {
+  const ValidationException({
+    super.message = 'Validation failed',
+    super.statusCode = 422,
+    this.details,
+  });
+
+  /// Field-level validation errors from the server.
+  final Map<String, dynamic>? details;
+
+  @override
+  String toString() =>
+      'ValidationException(message: $message, '
+      'statusCode: $statusCode, details: $details)';
+}
+
+/// Request timeout.
+class TimeoutException extends AppException {
+  const TimeoutException({super.message = 'Request timed out'});
+}
+
+/// Unknown / unclassified error.
+class UnknownException extends AppException {
+  const UnknownException({
+    super.message = 'An unexpected error occurred',
+  });
+}
