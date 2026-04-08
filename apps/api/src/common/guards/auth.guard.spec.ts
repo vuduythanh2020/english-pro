@@ -1,0 +1,227 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
+import { Reflector } from '@nestjs/core';
+import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { AuthGuard } from './auth.guard';
+import * as jwt from 'jsonwebtoken';
+
+const TEST_SECRET = 'test-jwt-secret-for-unit-testing';
+
+function createMockContext(
+  headers: Record<string, string> = {},
+  overrides: { handler?: any; cls?: any } = {},
+): ExecutionContext {
+  const request: any = { headers, user: undefined };
+  return {
+    switchToHttp: () => ({
+      getRequest: () => request,
+      getResponse: () => ({}),
+    }),
+    getHandler: () => overrides.handler || jest.fn(),
+    getClass: () => overrides.cls || jest.fn(),
+  } as unknown as ExecutionContext;
+}
+
+function signToken(
+  payload: Record<string, any>,
+  options?: jwt.SignOptions,
+): string {
+  return jwt.sign(payload, TEST_SECRET, options);
+}
+
+describe('AuthGuard', () => {
+  let guard: AuthGuard;
+  let reflector: Reflector;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        AuthGuard,
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn().mockReturnValue(TEST_SECRET) },
+        },
+        {
+          provide: Reflector,
+          useValue: {
+            getAllAndOverride: jest.fn().mockReturnValue(false),
+          },
+        },
+      ],
+    }).compile();
+    guard = module.get<AuthGuard>(AuthGuard);
+    reflector = module.get<Reflector>(Reflector);
+  });
+
+  it('should be defined', () => {
+    expect(guard).toBeDefined();
+  });
+
+  it('should throw UnauthorizedException when no authorization header', () => {
+    const context = createMockContext({});
+    expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
+    expect(() => guard.canActivate(context)).toThrow(
+      'Missing authorization token',
+    );
+  });
+
+  it('should throw UnauthorizedException when authorization header is not Bearer', () => {
+    const context = createMockContext({ authorization: 'Basic abc123' });
+    expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
+  });
+
+  it('should pass with valid token and attach user to request', () => {
+    const token = signToken({
+      sub: 'user-123',
+      email: 'test@example.com',
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      app_metadata: { role: 'PARENT', user_id: 'uid-456' },
+    });
+    const context = createMockContext({
+      authorization: `Bearer ${token}`,
+    });
+    expect(guard.canActivate(context)).toBe(true);
+
+    const request = context.switchToHttp().getRequest();
+    expect(request.user).toEqual({
+      sub: 'user-123',
+      email: 'test@example.com',
+      role: 'PARENT',
+      userId: 'uid-456',
+      childId: undefined,
+    });
+  });
+
+  it('should set default role to PARENT when app_metadata.role is missing', () => {
+    const token = signToken({
+      sub: 'user-123',
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      app_metadata: {},
+    });
+    const context = createMockContext({
+      authorization: `Bearer ${token}`,
+    });
+    expect(guard.canActivate(context)).toBe(true);
+
+    const request = context.switchToHttp().getRequest();
+    expect(request.user.role).toBe('PARENT');
+  });
+
+  it('should correctly extract CHILD role and childId', () => {
+    const token = signToken({
+      sub: 'child-auth-id',
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      app_metadata: {
+        role: 'CHILD',
+        user_id: 'parent-uid',
+        child_id: 'child-uid-789',
+      },
+    });
+    const context = createMockContext({
+      authorization: `Bearer ${token}`,
+    });
+    expect(guard.canActivate(context)).toBe(true);
+
+    const request = context.switchToHttp().getRequest();
+    expect(request.user).toEqual({
+      sub: 'child-auth-id',
+      email: undefined,
+      role: 'CHILD',
+      userId: 'parent-uid',
+      childId: 'child-uid-789',
+    });
+  });
+
+  it('should throw UnauthorizedException for expired token', () => {
+    const token = signToken({
+      sub: 'user-123',
+      exp: Math.floor(Date.now() / 1000) - 3600,
+    });
+    const context = createMockContext({
+      authorization: `Bearer ${token}`,
+    });
+    expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
+    expect(() => guard.canActivate(context)).toThrow('Token expired');
+  });
+
+  it('should throw UnauthorizedException for token without exp claim', () => {
+    // Sign without exp (using noTimestamp to avoid iat)
+    const token = jwt.sign({ sub: 'user-123' }, TEST_SECRET, {
+      noTimestamp: true,
+    });
+    const context = createMockContext({
+      authorization: `Bearer ${token}`,
+    });
+    expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
+    expect(() => guard.canActivate(context)).toThrow('Token missing expiry');
+  });
+
+  it('should throw UnauthorizedException for token signed with wrong secret', () => {
+    const token = jwt.sign(
+      { sub: 'user-123', exp: Math.floor(Date.now() / 1000) + 3600 },
+      'wrong-secret',
+    );
+    const context = createMockContext({
+      authorization: `Bearer ${token}`,
+    });
+    expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
+    expect(() => guard.canActivate(context)).toThrow('Invalid token');
+  });
+
+  it('should throw UnauthorizedException for malformed token', () => {
+    const context = createMockContext({
+      authorization: 'Bearer not-a-valid-jwt',
+    });
+    expect(() => guard.canActivate(context)).toThrow(UnauthorizedException);
+  });
+
+  it('should skip auth for @Public() endpoints', () => {
+    jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(true);
+    const context = createMockContext({}); // No auth header
+    expect(guard.canActivate(context)).toBe(true);
+  });
+
+  it('should handle token without app_metadata gracefully', () => {
+    const token = signToken({
+      sub: 'user-123',
+      exp: Math.floor(Date.now() / 1000) + 3600,
+    });
+    const context = createMockContext({
+      authorization: `Bearer ${token}`,
+    });
+    expect(guard.canActivate(context)).toBe(true);
+
+    const request = context.switchToHttp().getRequest();
+    expect(request.user.role).toBe('PARENT');
+    expect(request.user.userId).toBeUndefined();
+  });
+
+  it('should throw UnauthorizedException when SUPABASE_JWT_SECRET is not configured', async () => {
+    // Re-create guard with configService returning undefined secret
+    const moduleNoSecret: TestingModule = await Test.createTestingModule({
+      providers: [
+        AuthGuard,
+        {
+          provide: ConfigService,
+          useValue: { get: jest.fn().mockReturnValue(undefined) },
+        },
+        {
+          provide: Reflector,
+          useValue: { getAllAndOverride: jest.fn().mockReturnValue(false) },
+        },
+      ],
+    }).compile();
+    const guardNoSecret = moduleNoSecret.get<AuthGuard>(AuthGuard);
+    const token = signToken({
+      sub: 'user-123',
+      exp: Math.floor(Date.now() / 1000) + 3600,
+    });
+    const context = createMockContext({ authorization: `Bearer ${token}` });
+    expect(() => guardNoSecret.canActivate(context)).toThrow(
+      UnauthorizedException,
+    );
+    expect(() => guardNoSecret.canActivate(context)).toThrow(
+      'Authentication service unavailable',
+    );
+  });
+});
