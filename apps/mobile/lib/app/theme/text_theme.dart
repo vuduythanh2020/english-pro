@@ -1,0 +1,102 @@
+import 'package:flutter/material.dart';
+
+/// Nunito-based typography tokens following Material 3 text styles.
+///
+/// All text styles use the Nunito font family with weights
+/// Regular (400), SemiBold (600), and Bold (700).
+abstract final class AppTextTheme {
+  /// Font family name used across the app.
+  static const String fontFamily = 'Nunito';
+
+  /// Complete M3 [TextTheme] with size, weight, and line-height tokens.
+  ///
+  /// The Nunito font family is applied at the `AppTheme` level via
+  /// `GoogleFonts.nunitoTextTheme()` to keep this class synchronous
+  /// and easily testable.
+  static const TextTheme textTheme = TextTheme(
+    displayLarge: TextStyle(
+      fontWeight: FontWeight.w700,
+      fontSize: 57,
+      height: 64 / 57,
+      letterSpacing: -0.25,
+    ),
+    displayMedium: TextStyle(
+      fontWeight: FontWeight.w700,
+      fontSize: 45,
+      height: 52 / 45,
+    ),
+    displaySmall: TextStyle(
+      fontWeight: FontWeight.w700,
+      fontSize: 36,
+      height: 44 / 36,
+    ),
+    headlineLarge: TextStyle(
+      fontWeight: FontWeight.w700,
+      fontSize: 32,
+      height: 40 / 32,
+    ),
+    headlineMedium: TextStyle(
+      fontWeight: FontWeight.w600,
+      fontSize: 28,
+      height: 36 / 28,
+    ),
+    headlineSmall: TextStyle(
+      fontWeight: FontWeight.w600,
+      fontSize: 24,
+      height: 32 / 24,
+    ),
+    titleLarge: TextStyle(
+      fontWeight: FontWeight.w600,
+      fontSize: 22,
+      height: 28 / 22,
+    ),
+    titleMedium: TextStyle(
+      fontWeight: FontWeight.w600,
+      fontSize: 16,
+      height: 24 / 16,
+      letterSpacing: 0.15,
+    ),
+    titleSmall: TextStyle(
+      fontWeight: FontWeight.w600,
+      fontSize: 14,
+      height: 20 / 14,
+      letterSpacing: 0.1,
+    ),
+    bodyLarge: TextStyle(
+      fontWeight: FontWeight.w400,
+      fontSize: 16,
+      height: 24 / 16,
+      letterSpacing: 0.5,
+    ),
+    bodyMedium: TextStyle(
+      fontWeight: FontWeight.w400,
+      fontSize: 14,
+      height: 20 / 14,
+      letterSpacing: 0.25,
+    ),
+    bodySmall: TextStyle(
+      fontWeight: FontWeight.w400,
+      fontSize: 12,
+      height: 16 / 12,
+      letterSpacing: 0.4,
+    ),
+    labelLarge: TextStyle(
+      fontWeight: FontWeight.w600,
+      fontSize: 14,
+      height: 20 / 14,
+      letterSpacing: 0.1,
+    ),
+    labelMedium: TextStyle(
+      fontWeight: FontWeight.w600,
+      fontSize: 12,
+      height: 16 / 12,
+      letterSpacing: 0.5,
+    ),
+    labelSmall: TextStyle(
+      fontWeight: FontWeight.w600,
+      fontSize: 11,
+      height: 16 / 11,
+      letterSpacing: 0.5,
+    ),
+  );
+}

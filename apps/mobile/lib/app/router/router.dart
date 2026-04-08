@@ -1,9 +1,12 @@
 import 'dart:async';
 
 import 'package:english_pro/app/router/placeholder_screens.dart';
+import 'package:english_pro/app/widgets/app_bottom_navigation.dart';
 import 'package:english_pro/core/auth/auth_bloc.dart';
 import 'package:english_pro/core/auth/auth_state.dart';
+import 'package:english_pro/features/settings/view/settings_screen.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 /// Creates and configures the application [GoRouter].
@@ -27,9 +30,6 @@ GoRouter createRouter(AuthBloc authBloc) {
       if (isLoggedIn && isPublicRoute) return '/home';
 
       // ── Consent guard ──────────────────────────────────────────────
-      // Redirects authenticated users who have not completed the
-      // parental consent flow away from protected screens.
-      // Real consent verification will be wired in Story 2.3.
       if (isLoggedIn) {
         final hasConsent = authState.hasConsent;
         final isConsentRoute = location == '/consent';
@@ -59,16 +59,79 @@ GoRouter createRouter(AuthBloc authBloc) {
         path: '/consent',
         builder: (_, _) => const ConsentPlaceholderScreen(),
       ),
-      GoRoute(
-        path: '/home',
-        builder: (_, _) => const HomePlaceholderScreen(),
-      ),
-      GoRoute(
-        path: '/profile',
-        builder: (_, _) => const ProfilePlaceholderScreen(),
+
+      // ── Tab navigation via StatefulShellRoute ────────────────────
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) {
+          return _ScaffoldWithNavBar(navigationShell: navigationShell);
+        },
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/home',
+                builder: (_, _) => const HomePlaceholderScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/practice',
+                builder: (_, _) => const PracticePlaceholderScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/progress',
+                builder: (_, _) => const ProgressPlaceholderScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/profile',
+                builder: (_, _) => const ProfilePlaceholderScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'settings',
+                    builder: (_, _) => const SettingsScreen(),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
       ),
     ],
   );
+}
+
+/// Shell widget that provides the bottom navigation bar around
+/// the currently active tab branch.
+class _ScaffoldWithNavBar extends StatelessWidget {
+  const _ScaffoldWithNavBar({required this.navigationShell});
+
+  final StatefulNavigationShell navigationShell;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: navigationShell,
+      bottomNavigationBar: AppBottomNavigation(
+        currentIndex: navigationShell.currentIndex,
+        onDestinationSelected: (index) {
+          navigationShell.goBranch(
+            index,
+            initialLocation: index == navigationShell.currentIndex,
+          );
+        },
+      ),
+    );
+  }
 }
 
 /// Converts a [Stream] into a [ChangeNotifier] that [GoRouter] can

@@ -2,9 +2,12 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:english_pro/app/router/router.dart';
+import 'package:english_pro/app/theme/theme.dart';
 import 'package:english_pro/bootstrap.dart';
 import 'package:english_pro/core/auth/auth_bloc.dart';
 import 'package:english_pro/core/network/connectivity_cubit.dart';
+import 'package:english_pro/core/theme/theme_cubit.dart';
+import 'package:english_pro/core/theme/theme_state.dart';
 import 'package:english_pro/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -27,11 +30,13 @@ class App extends StatefulWidget {
 
 class _AppState extends State<App> {
   late final GoRouter _router;
+  late final ThemeCubit _themeCubit;
 
   @override
   void initState() {
     super.initState();
     _router = createRouter(widget.deps.authBloc);
+    _themeCubit = ThemeCubit();
   }
 
   @override
@@ -39,6 +44,7 @@ class _AppState extends State<App> {
     widget.deps.dio.close();
     unawaited(widget.deps.authBloc.close());
     unawaited(widget.deps.connectivityCubit.close());
+    unawaited(_themeCubit.close());
     _router.dispose();
     super.dispose();
   }
@@ -57,19 +63,21 @@ class _AppState extends State<App> {
           BlocProvider<ConnectivityCubit>.value(
             value: widget.deps.connectivityCubit,
           ),
-        ],
-        child: MaterialApp.router(
-          theme: ThemeData(
-            appBarTheme: AppBarTheme(
-              backgroundColor:
-                  Theme.of(context).colorScheme.inversePrimary,
-            ),
-            useMaterial3: true,
+          BlocProvider<ThemeCubit>.value(
+            value: _themeCubit,
           ),
-          localizationsDelegates:
-              AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          routerConfig: _router,
+        ],
+        child: BlocBuilder<ThemeCubit, ThemeState>(
+          builder: (context, themeState) {
+            return MaterialApp.router(
+              theme: AppTheme.lightTheme(),
+              darkTheme: AppTheme.darkTheme(),
+              themeMode: themeState.themeMode,
+              localizationsDelegates: AppLocalizations.localizationsDelegates,
+              supportedLocales: AppLocalizations.supportedLocales,
+              routerConfig: _router,
+            );
+          },
         ),
       ),
     );
