@@ -6,7 +6,7 @@
     ],
     "rootDir": "..",
     "testEnvironment": "node",
-    "testRegex": "test/acceptance/.*\\.spec\\.ts$",
+    "testRegex": "test/integration/.*\\.spec\\.ts$",
     "transform": {
         "^.+\\.(t|j)s$": "ts-jest"
     },
