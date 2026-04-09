@@ -22,4 +22,4 @@ import { LoggingInterceptor } from './interceptors/logging.interceptor';
   ],
   exports: [AuthGuard, RolesGuard, ParentalGateGuard],
 })
-export class CommonModule { }
+export class CommonModule {}

@@ -9,7 +9,7 @@ import { PARENT_ONLY_KEY } from '../decorators/parent-only.decorator';
 
 @Injectable()
 export class ParentalGateGuard implements CanActivate {
-  constructor(private readonly reflector: Reflector) { }
+  constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
     const isParentOnly = this.reflector.getAllAndOverride<boolean>(

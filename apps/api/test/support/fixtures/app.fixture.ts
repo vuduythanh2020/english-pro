@@ -5,8 +5,8 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { AppModule } from '../../../src/app.module';
 
 export interface AppFixture {
-    app: INestApplication;
-    module: TestingModule;
+  app: INestApplication;
+  module: TestingModule;
 }
 
 /**
@@ -18,32 +18,30 @@ export interface AppFixture {
  * beforeAll(async () => { fixture = await createAppFixture(); });
  * afterAll(async () => { await fixture.app.close(); });
  */
-export async function createAppFixture(
-    overrides?: {
-        imports?: any[];
-        providers?: any[];
-    },
-): Promise<AppFixture> {
-    const moduleBuilder = Test.createTestingModule({
-        imports: [AppModule, ...(overrides?.imports || [])],
-        providers: [...(overrides?.providers || [])],
-    });
+export async function createAppFixture(overrides?: {
+  imports?: any[];
+  providers?: any[];
+}): Promise<AppFixture> {
+  const moduleBuilder = Test.createTestingModule({
+    imports: [AppModule, ...(overrides?.imports || [])],
+    providers: [...(overrides?.providers || [])],
+  });
 
-    const module = await moduleBuilder.compile();
-    const app = module.createNestApplication();
+  const module = await moduleBuilder.compile();
+  const app = module.createNestApplication();
 
-    // Apply same global config as main.ts
-    app.useGlobalPipes(
-        new ValidationPipe({
-            whitelist: true,
-            forbidNonWhitelisted: true,
-            transform: true,
-        }),
-    );
+  // Apply same global config as main.ts
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
 
-    await app.init();
+  await app.init();
 
-    return { app, module };
+  return { app, module };
 }
 
 /**
@@ -56,13 +54,13 @@ export async function createAppFixture(
  * });
  */
 export async function createTestModule(config: {
-    imports?: any[];
-    controllers?: any[];
-    providers?: any[];
+  imports?: any[];
+  controllers?: any[];
+  providers?: any[];
 }): Promise<TestingModule> {
-    return Test.createTestingModule({
-        imports: config.imports || [],
-        controllers: config.controllers || [],
-        providers: config.providers || [],
-    }).compile();
+  return Test.createTestingModule({
+    imports: config.imports || [],
+    controllers: config.controllers || [],
+    providers: config.providers || [],
+  }).compile();
 }

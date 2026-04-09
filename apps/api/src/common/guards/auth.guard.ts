@@ -18,7 +18,7 @@ export class AuthGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly configService: ConfigService,
-  ) { }
+  ) {}
 
   canActivate(context: ExecutionContext): boolean {
     // Skip auth for @Public() endpoints
@@ -35,7 +35,9 @@ export class AuthGuard implements CanActivate {
     try {
       const secret = this.configService.get<string>('SUPABASE_JWT_SECRET');
       if (!secret) {
-        this.logger.error('SUPABASE_JWT_SECRET is not configured — check your .env file');
+        this.logger.error(
+          'SUPABASE_JWT_SECRET is not configured — check your .env file',
+        );
         throw new UnauthorizedException('Authentication service unavailable');
       }
 

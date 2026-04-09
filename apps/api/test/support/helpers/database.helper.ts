@@ -11,29 +11,24 @@
  * @example
  * afterEach(async () => { await truncateAllTables(prisma); });
  */
-export async function truncateAllTables(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    prisma: any,
-): Promise<void> {
-    const tableNames = [
-        'safety_flags',
-        'xp_transactions',
-        'pronunciation_scores',
-        'badges',
-        'streaks',
-        'conversation_sessions',
-        'conversation_scenarios',
-        'subscriptions',
-        'parental_consents',
-        'child_profiles',
-        'parents',
-    ];
+export async function truncateAllTables(prisma: any): Promise<void> {
+  const tableNames = [
+    'safety_flags',
+    'xp_transactions',
+    'pronunciation_scores',
+    'badges',
+    'streaks',
+    'conversation_sessions',
+    'conversation_scenarios',
+    'subscriptions',
+    'parental_consents',
+    'child_profiles',
+    'parents',
+  ];
 
-    for (const table of tableNames) {
-        await prisma.$executeRawUnsafe(
-            `TRUNCATE TABLE "${table}" CASCADE`,
-        );
-    }
+  for (const table of tableNames) {
+    await prisma.$executeRawUnsafe(`TRUNCATE TABLE "${table}" CASCADE`);
+  }
 }
 
 /**
@@ -44,29 +39,28 @@ export async function truncateAllTables(
  * const { parent, child } = await seedTestFamily(prisma);
  */
 export async function seedTestFamily(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    prisma: any,
-    overrides?: {
-        parentEmail?: string;
-        childName?: string;
-        childAge?: number;
-    },
+  prisma: any,
+  overrides?: {
+    parentEmail?: string;
+    childName?: string;
+    childAge?: number;
+  },
 ) {
-    const parent = await prisma.parent.create({
-        data: {
-            authUserId: crypto.randomUUID(),
-            email: overrides?.parentEmail ?? 'test-parent@test.com',
-            displayName: 'Test Parent',
-        },
-    });
+  const parent = await prisma.parent.create({
+    data: {
+      authUserId: crypto.randomUUID(),
+      email: overrides?.parentEmail ?? 'test-parent@test.com',
+      displayName: 'Test Parent',
+    },
+  });
 
-    const child = await prisma.childProfile.create({
-        data: {
-            parentId: parent.id,
-            displayName: overrides?.childName ?? 'Test Kid',
-            age: overrides?.childAge ?? 6,
-        },
-    });
+  const child = await prisma.childProfile.create({
+    data: {
+      parentId: parent.id,
+      displayName: overrides?.childName ?? 'Test Kid',
+      age: overrides?.childAge ?? 6,
+    },
+  });
 
-    return { parent, child };
+  return { parent, child };
 }

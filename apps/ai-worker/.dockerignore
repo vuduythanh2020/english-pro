@@ -1,0 +1,17 @@
+node_modules
+dist
+coverage
+.env
+.env.*
+*.md
+*.spec.ts
+*.test.ts
+test/
+.eslintrc*
+eslint.config.*
+.prettierrc*
+tsconfig*.json
+jest*.json
+.gitignore
+.dockerignore
+docker-compose*.yml

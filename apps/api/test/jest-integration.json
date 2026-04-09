@@ -11,12 +11,10 @@
         "^.+\\.(t|j)s$": "ts-jest"
     },
     "moduleNameMapper": {
+        "^uuid$": "<rootDir>/test/__mocks__/uuid.ts",
         "^test/support/(.*)$": "<rootDir>/test/support/$1"
     },
     "setupFiles": [
         "<rootDir>/test/support/jest-setup.ts"
-    ],
-    "transformIgnorePatterns": [
-        "node_modules/(?!(uuid)/)"
     ]
 }

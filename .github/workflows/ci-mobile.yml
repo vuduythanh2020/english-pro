@@ -1,0 +1,66 @@
+name: CI - Mobile
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'apps/mobile/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/mobile/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze-and-test:
+    name: Analyze & Test Flutter
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.0'
+          channel: stable
+          cache: true
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pub-cache
+            apps/mobile/.dart_tool
+          key: ${{ runner.os }}-pub-${{ hashFiles('apps/mobile/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Install Melos
+        run: dart pub global activate melos
+
+      - name: Bootstrap with Melos
+        # melos bootstrap must run from workspace root (where melos.yaml lives)
+        run: melos bootstrap
+
+      - name: Run analyze
+        working-directory: apps/mobile
+        run: melos analyze
+
+      - name: Run tests with coverage
+        # Run flutter test directly with coverage — avoids double execution from melos test + flutter test
+        working-directory: apps/mobile
+        run: flutter test --coverage
+
+      - name: Check coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: apps/mobile/coverage/lcov.info
+          retention-days: 7
+          if-no-files-found: warn

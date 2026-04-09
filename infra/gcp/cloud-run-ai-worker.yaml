@@ -1,0 +1,71 @@
+# Cloud Run Service Definition - AI Worker
+# This is a reference configuration for the english-pro-ai-worker service.
+# Actual deployment is handled via GitHub Actions deploy-ai-worker.yml workflow.
+# This file documents the expected Cloud Run configuration.
+
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: english-pro-ai-worker
+  labels:
+    app: english-pro
+    component: ai-worker
+  annotations:
+    run.googleapis.com/launch-stage: GA
+    run.googleapis.com/ingress: internal
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: 0
+        autoscaling.knative.dev/maxScale: 20
+        run.googleapis.com/execution-environment: gen2
+    spec:
+      containerConcurrency: 10
+      timeoutSeconds: 600
+      containers:
+        - image: asia-southeast1-docker.pkg.dev/PROJECT_ID/english-pro/english-pro-ai-worker:latest
+          ports:
+            - containerPort: 3001
+          resources:
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "3001"
+            - name: GCP_PROJECT_ID
+              valueFrom:
+                secretKeyRef:
+                  key: latest
+                  name: GCP_PROJECT_ID
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  key: latest
+                  name: REDIS_URL
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: latest
+                  name: OPENAI_API_KEY
+            - name: GOOGLE_AI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: latest
+                  name: GOOGLE_AI_API_KEY
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 3001
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3001
+            periodSeconds: 30
+            failureThreshold: 3

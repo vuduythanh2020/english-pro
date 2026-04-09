@@ -1,4 +1,6 @@
-import { ExecutionContext, CallHandler, Logger } from '@nestjs/common';
+/* eslint-disable @typescript-eslint/unbound-method */
+import { ExecutionContext, CallHandler } from '@nestjs/common';
+import type { LoggerService } from '@nestjs/common';
 import { of, throwError } from 'rxjs';
 import { LoggingInterceptor } from './logging.interceptor';
 
@@ -30,20 +32,23 @@ function createErrorCallHandler(error: Error): CallHandler {
   };
 }
 
+function createMockLogger(): LoggerService {
+  return {
+    log: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn(),
+    verbose: jest.fn(),
+  };
+}
+
 describe('LoggingInterceptor', () => {
   let interceptor: LoggingInterceptor;
-  let logSpy: jest.SpyInstance;
-  let errorSpy: jest.SpyInstance;
+  let mockLogger: LoggerService;
 
   beforeEach(() => {
-    interceptor = new LoggingInterceptor();
-    logSpy = jest.spyOn(Logger.prototype, 'log').mockImplementation();
-    errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation();
-  });
-
-  afterEach(() => {
-    logSpy.mockRestore();
-    errorSpy.mockRestore();
+    mockLogger = createMockLogger();
+    interceptor = new LoggingInterceptor(mockLogger);
   });
 
   it('should be defined', () => {
@@ -60,14 +65,17 @@ describe('LoggingInterceptor', () => {
     const callHandler = createMockCallHandler({ data: 'test' });
 
     interceptor.intercept(context, callHandler).subscribe(() => {
-      expect(logSpy).toHaveBeenCalledWith(
+      expect(mockLogger.log).toHaveBeenCalledWith(
         expect.stringContaining('GET /api/v1/test 200'),
+        'HTTP',
       );
-      expect(logSpy).toHaveBeenCalledWith(
+      expect(mockLogger.log).toHaveBeenCalledWith(
         expect.stringContaining('[user:user-123]'),
+        'HTTP',
       );
-      expect(logSpy).toHaveBeenCalledWith(
+      expect(mockLogger.log).toHaveBeenCalledWith(
         expect.stringContaining('[req:req-abc]'),
+        'HTTP',
       );
       done();
     });
@@ -78,8 +86,9 @@ describe('LoggingInterceptor', () => {
     const callHandler = createMockCallHandler();
 
     interceptor.intercept(context, callHandler).subscribe(() => {
-      expect(logSpy).toHaveBeenCalledWith(
+      expect(mockLogger.log).toHaveBeenCalledWith(
         expect.stringContaining('[user:anonymous]'),
+        'HTTP',
       );
       done();
     });
@@ -91,11 +100,15 @@ describe('LoggingInterceptor', () => {
 
     interceptor.intercept(context, callHandler).subscribe({
       error: () => {
-        expect(errorSpy).toHaveBeenCalledWith(
+        expect(mockLogger.error).toHaveBeenCalledWith(
           expect.stringContaining('GET /api/v1/fail ERROR'),
+          expect.any(String),
+          'HTTP',
         );
-        expect(errorSpy).toHaveBeenCalledWith(
+        expect(mockLogger.error).toHaveBeenCalledWith(
           expect.stringContaining('Test error'),
+          expect.any(String),
+          'HTTP',
         );
         done();
       },
@@ -107,7 +120,10 @@ describe('LoggingInterceptor', () => {
     const callHandler = createMockCallHandler();
 
     interceptor.intercept(context, callHandler).subscribe(() => {
-      expect(logSpy).toHaveBeenCalledWith(expect.stringMatching(/\d+ms/));
+      expect(mockLogger.log).toHaveBeenCalledWith(
+        expect.stringMatching(/\d+ms/),
+        'HTTP',
+      );
       done();
     });
   });
@@ -125,8 +141,9 @@ describe('LoggingInterceptor', () => {
     const callHandler = createMockCallHandler();
 
     interceptor.intercept(context, callHandler).subscribe(() => {
-      expect(logSpy).toHaveBeenCalledWith(
+      expect(mockLogger.log).toHaveBeenCalledWith(
         expect.stringContaining('[req:unknown]'),
+        'HTTP',
       );
       done();
     });

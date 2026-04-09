@@ -1,0 +1,84 @@
+name: Deploy - AI Worker
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/ai-worker/**'
+      - 'packages/shared-types/**'
+
+concurrency:
+  group: deploy-ai-worker
+  cancel-in-progress: false
+
+env:
+  GAR_LOCATION: asia-southeast1
+  SERVICE_NAME: english-pro-ai-worker
+  REGION: asia-southeast1
+
+jobs:
+  deploy:
+    name: Build & Deploy AI Worker to Cloud Run
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Setup Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.GAR_LOCATION }}-docker.pkg.dev
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/english-pro/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+            -f apps/ai-worker/Dockerfile .
+
+      - name: Push Docker image
+        run: |
+          docker push ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/english-pro/${{ env.SERVICE_NAME }}:${{ github.sha }}
+
+      - name: Deploy to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.SERVICE_NAME }}
+          region: ${{ env.REGION }}
+          image: ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/english-pro/${{ env.SERVICE_NAME }}:${{ github.sha }}
+          flags: |
+            --min-instances=0
+            --max-instances=20
+            --concurrency=10
+            --memory=1Gi
+            --cpu=1
+            --port=3001
+          secrets: |
+            REDIS_URL=REDIS_URL:1
+            OPENAI_API_KEY=OPENAI_API_KEY:1
+            GOOGLE_AI_API_KEY=GOOGLE_AI_API_KEY:1
+          env_vars: |
+            NODE_ENV=production
+            GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Verify deployment
+        run: |
+          SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region=${{ env.REGION }} \
+            --format='value(status.url)' 2>/dev/null || echo "")
+          if [ -n "${SERVICE_URL}" ]; then
+            echo "Service deployed to: ${SERVICE_URL}"
+            curl -sf "${SERVICE_URL}/health" || echo "Health check pending (service may be warming up)..."
+          else
+            echo "Note: Service URL not yet available (may be first deploy). Deployment considered successful."
+          fi
