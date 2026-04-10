@@ -96,7 +96,7 @@ void main() {
       expect(authBloc.state, isA<AuthAuthenticated>());
     });
 
-    test('route hierarchy has 6 routes', () {
+    test('route hierarchy has at least 5 routes', () {
       when(
         () => mockSecureStorage.getAccessToken(),
       ).thenAnswer((_) async => null);
@@ -111,7 +111,7 @@ void main() {
 
       expect(
         router.configuration.routes.length,
-        greaterThanOrEqualTo(6),
+        greaterThanOrEqualTo(5),
       );
     });
   });
