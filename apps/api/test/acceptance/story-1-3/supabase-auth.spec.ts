@@ -37,18 +37,14 @@ describe('Story 1.3: Supabase Auth Config @P1 @Unit', () => {
     });
 
     it('should have AuthGuard defined', () => {
-      const {
-        AuthGuard,
-      } = require('../../../src/common/guards/auth.guard');
+      const { AuthGuard } = require('../../../src/common/guards/auth.guard');
       expect(AuthGuard).toBeDefined();
     });
 
     it('should validate JWT tokens — invalid token throws', () => {
       // AuthGuard requires DI (Reflector, ConfigService, Winston Logger)
       // so we verify the guard class exists and has canActivate method
-      const {
-        AuthGuard,
-      } = require('../../../src/common/guards/auth.guard');
+      const { AuthGuard } = require('../../../src/common/guards/auth.guard');
       expect(AuthGuard.prototype.canActivate).toBeDefined();
     });
 
@@ -56,7 +52,10 @@ describe('Story 1.3: Supabase Auth Config @P1 @Unit', () => {
       // Verify the guard source code contains token extraction logic
       const { readFileSync } = require('fs');
       const { join } = require('path');
-      const guardPath = join(__dirname, '../../../src/common/guards/auth.guard.ts');
+      const guardPath = join(
+        __dirname,
+        '../../../src/common/guards/auth.guard.ts',
+      );
       const content = readFileSync(guardPath, 'utf-8');
       expect(content).toContain('extractToken');
       expect(content).toContain('Bearer');
@@ -65,7 +64,10 @@ describe('Story 1.3: Supabase Auth Config @P1 @Unit', () => {
     it('should verify JWT signature using jsonwebtoken library', () => {
       const { readFileSync } = require('fs');
       const { join } = require('path');
-      const guardPath = join(__dirname, '../../../src/common/guards/auth.guard.ts');
+      const guardPath = join(
+        __dirname,
+        '../../../src/common/guards/auth.guard.ts',
+      );
       const content = readFileSync(guardPath, 'utf-8');
       expect(content).toContain("import * as jwt from 'jsonwebtoken'");
       expect(content).toContain('jwt.verify');

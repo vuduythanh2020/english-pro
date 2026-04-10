@@ -4,10 +4,17 @@ export interface JwtPayload {
   exp?: number;
   iat?: number;
   iss?: string;
+
+  // Custom claims injected by custom_access_token_hook (root level)
+  user_role?: string; // 'PARENT' | 'CHILD'
+  user_id?: string; // public.parents.id (UUID)
+  children_ids?: string[]; // public.child_profiles.id[]
+
+  // Legacy: app_metadata path (kept for backward compatibility)
   app_metadata?: {
-    role?: string; // 'PARENT' | 'CHILD'
-    user_id?: string; // public.users.id (UUID)
-    child_id?: string; // public.children.id (UUID) — only for child JWTs
+    role?: string;
+    user_id?: string;
+    child_id?: string;
   };
 }
 

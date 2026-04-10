@@ -4,16 +4,20 @@ import 'package:english_pro/app/router/placeholder_screens.dart';
 import 'package:english_pro/app/widgets/app_bottom_navigation.dart';
 import 'package:english_pro/core/auth/auth_bloc.dart';
 import 'package:english_pro/core/auth/auth_state.dart';
+import 'package:english_pro/features/auth/bloc/registration_bloc.dart';
+import 'package:english_pro/features/auth/repositories/auth_repository.dart';
+import 'package:english_pro/features/auth/view/registration_screen.dart';
 import 'package:english_pro/features/settings/view/settings_screen.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 /// Creates and configures the application [GoRouter].
 ///
 /// Route guards are implemented via the top-level `redirect` callback
 /// instead of `NavigatorObserver`, following architecture guidelines.
-GoRouter createRouter(AuthBloc authBloc) {
+GoRouter createRouter(AuthBloc authBloc, {required AuthRepository authRepository}) {
   return GoRouter(
     initialLocation: '/',
     debugLogDiagnostics: kDebugMode,
@@ -53,7 +57,10 @@ GoRouter createRouter(AuthBloc authBloc) {
       ),
       GoRoute(
         path: '/register',
-        builder: (_, _) => const RegisterPlaceholderScreen(),
+        builder: (context, _) => BlocProvider(
+          create: (_) => RegistrationBloc(authRepository: authRepository),
+          child: const RegistrationScreen(),
+        ),
       ),
       GoRoute(
         path: '/consent',

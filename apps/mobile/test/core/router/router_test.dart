@@ -8,6 +8,7 @@ import 'package:english_pro/core/auth/auth_bloc.dart';
 import 'package:english_pro/core/auth/auth_event.dart';
 import 'package:english_pro/core/auth/auth_state.dart';
 import 'package:english_pro/core/storage/secure_storage_service.dart';
+import 'package:english_pro/features/auth/repositories/auth_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:mocktail/mocktail.dart';
@@ -16,13 +17,17 @@ class MockSecureStorageService extends Mock implements SecureStorageService {}
 
 class MockStorage extends Mock implements Storage {}
 
+class MockAuthRepository extends Mock implements AuthRepository {}
+
 void main() {
   late MockSecureStorageService mockSecureStorage;
   late MockStorage mockHydratedStorage;
+  late MockAuthRepository mockAuthRepository;
 
   setUp(() {
     mockSecureStorage = MockSecureStorageService();
     mockHydratedStorage = MockStorage();
+    mockAuthRepository = MockAuthRepository();
 
     when(() => mockHydratedStorage.read(any())).thenReturn(null);
     when(
@@ -48,7 +53,7 @@ void main() {
       );
       addTearDown(authBloc.close);
 
-      final router = createRouter(authBloc);
+      final router = createRouter(authBloc, authRepository: mockAuthRepository);
       addTearDown(router.dispose);
 
       // Test the redirect function directly:
@@ -101,7 +106,7 @@ void main() {
       );
       addTearDown(authBloc.close);
 
-      final router = createRouter(authBloc);
+      final router = createRouter(authBloc, authRepository: mockAuthRepository);
       addTearDown(router.dispose);
 
       expect(

@@ -21,4 +21,4 @@ import { LoggingInterceptor } from './interceptors/logging.interceptor';
     { provide: APP_INTERCEPTOR, useClass: LoggingInterceptor },
   ],
 })
-export class CommonModule { }
+export class CommonModule {}

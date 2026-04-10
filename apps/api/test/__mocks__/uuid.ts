@@ -7,18 +7,18 @@
 let counter = 0;
 
 export function v4(): string {
-    counter++;
-    const hex = counter.toString(16).padStart(12, '0');
-    return `00000000-0000-4000-a000-${hex}`;
+  counter++;
+  const hex = counter.toString(16).padStart(12, '0');
+  return `00000000-0000-4000-a000-${hex}`;
 }
 
 export function v1(): string {
-    return v4();
+  return v4();
 }
 
 // Reset counter between test suites
 export function __resetCounter(): void {
-    counter = 0;
+  counter = 0;
 }
 
 export default { v4, v1 };

@@ -5,6 +5,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { WinstonModule } from 'nest-winston';
 import { PrismaModule } from './prisma/prisma.module';
 import { CommonModule } from './common/common.module';
+import { AuthModule } from './modules/auth/auth.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { createLoggerConfig } from './config/logger.config';
@@ -20,8 +21,9 @@ import { createLoggerConfig } from './config/logger.config';
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60000, limit: 60 }]),
     PrismaModule,
     CommonModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
-export class AppModule { }
+export class AppModule {}

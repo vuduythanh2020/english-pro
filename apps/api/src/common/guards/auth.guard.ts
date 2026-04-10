@@ -20,7 +20,7 @@ export class AuthGuard implements CanActivate {
     private readonly configService: ConfigService,
     @Inject(WINSTON_MODULE_NEST_PROVIDER)
     private readonly logger: LoggerService,
-  ) { }
+  ) {}
 
   canActivate(context: ExecutionContext): boolean {
     // Skip auth for @Public() endpoints
@@ -50,11 +50,13 @@ export class AuthGuard implements CanActivate {
         throw new UnauthorizedException('Token missing expiry');
       }
 
+      // Read custom claims from root level (set by custom_access_token_hook)
+      // with fallback to app_metadata for backward compatibility
       const user: RequestUser = {
         sub: payload.sub,
         email: payload.email,
-        role: payload.app_metadata?.role || 'PARENT',
-        userId: payload.app_metadata?.user_id,
+        role: payload.user_role || payload.app_metadata?.role || 'PARENT',
+        userId: payload.user_id || payload.app_metadata?.user_id,
         childId: payload.app_metadata?.child_id,
       };
 

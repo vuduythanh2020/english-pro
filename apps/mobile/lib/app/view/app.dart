@@ -8,6 +8,7 @@ import 'package:english_pro/core/auth/auth_bloc.dart';
 import 'package:english_pro/core/network/connectivity_cubit.dart';
 import 'package:english_pro/core/theme/theme_cubit.dart';
 import 'package:english_pro/core/theme/theme_state.dart';
+import 'package:english_pro/features/auth/repositories/auth_repository.dart';
 import 'package:english_pro/l10n/l10n.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -31,11 +32,16 @@ class App extends StatefulWidget {
 class _AppState extends State<App> {
   late final GoRouter _router;
   late final ThemeCubit _themeCubit;
+  late final AuthRepository _authRepository;
 
   @override
   void initState() {
     super.initState();
-    _router = createRouter(widget.deps.authBloc);
+    _authRepository = AuthRepository(dio: widget.deps.dio);
+    _router = createRouter(
+      widget.deps.authBloc,
+      authRepository: _authRepository,
+    );
     _themeCubit = ThemeCubit();
   }
 
