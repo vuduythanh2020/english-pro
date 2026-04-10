@@ -45,6 +45,10 @@ double_confirm_changes = true
 # Disabled for local dev ease — enable in production via Supabase Dashboard
 enable_confirmations = false
 
+[auth.hook.custom_access_token]
+enabled = true
+uri = "pg-functions://postgres/public/custom_access_token_hook"
+
 [storage]
 enabled = true
 # The maximum file size allowed (e.g. "5MB", "500KB").

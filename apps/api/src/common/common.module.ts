@@ -20,6 +20,5 @@ import { LoggingInterceptor } from './interceptors/logging.interceptor';
     { provide: APP_INTERCEPTOR, useClass: ResponseWrapperInterceptor },
     { provide: APP_INTERCEPTOR, useClass: LoggingInterceptor },
   ],
-  exports: [AuthGuard, RolesGuard, ParentalGateGuard],
 })
-export class CommonModule {}
+export class CommonModule { }
