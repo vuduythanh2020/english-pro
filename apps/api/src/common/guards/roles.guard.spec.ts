@@ -70,7 +70,7 @@ describe('RolesGuard', () => {
     const context = createMockContext({ role: 'CHILD' });
     expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
     expect(() => guard.canActivate(context)).toThrow(
-      "Role 'CHILD' not authorized. Required: PARENT",
+      'Insufficient permissions for this resource',
     );
   });
 

@@ -1,4 +1,4 @@
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   data: T;
   meta: {
     timestamp: string;
@@ -10,7 +10,7 @@ export interface ApiErrorResponse {
   statusCode: number;
   error: string;
   message: string;
-  details?: any;
+  details?: Record<string, unknown>;
   meta: {
     timestamp: string;
     requestId: string;

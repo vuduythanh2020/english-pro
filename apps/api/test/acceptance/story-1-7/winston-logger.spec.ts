@@ -98,25 +98,33 @@ describe('Story 1.7: Winston Logger Integration (NestJS) @P0 @Unit', () => {
     });
 
     it('should set log level to info in production', () => {
-      // RED: logger.config.ts does not exist yet
       process.env.NODE_ENV = 'production';
+      process.env.GCP_PROJECT_ID = 'test-project';
 
-      const { loggerConfig } = require(LOGGER_CONFIG_PATH.replace('.ts', ''));
-      const options = loggerConfig();
+      const { createLoggerConfig } = require(
+        LOGGER_CONFIG_PATH.replace('.ts', ''),
+      );
+      const options = createLoggerConfig();
 
       expect(options.level).toBe('info');
+
+      delete process.env.GCP_PROJECT_ID;
     });
 
     it('should return winston options with at least one transport in production', () => {
-      // RED: logger.config.ts does not exist yet
       process.env.NODE_ENV = 'production';
+      process.env.GCP_PROJECT_ID = 'test-project';
 
-      const { loggerConfig } = require(LOGGER_CONFIG_PATH.replace('.ts', ''));
-      const options = loggerConfig();
+      const { createLoggerConfig } = require(
+        LOGGER_CONFIG_PATH.replace('.ts', ''),
+      );
+      const options = createLoggerConfig();
 
       expect(options.transports).toBeDefined();
       expect(Array.isArray(options.transports)).toBe(true);
       expect(options.transports.length).toBeGreaterThan(0);
+
+      delete process.env.GCP_PROJECT_ID;
     });
   });
 

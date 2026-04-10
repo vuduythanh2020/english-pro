@@ -35,3 +35,5 @@ infra/docker/data/
 
 # Supabase CLI
 .supabase/
+
+graphify-out

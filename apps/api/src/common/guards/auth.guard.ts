@@ -3,22 +3,24 @@ import {
   CanActivate,
   ExecutionContext,
   UnauthorizedException,
-  Logger,
+  Inject,
 } from '@nestjs/common';
+import type { LoggerService } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
+import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import * as jwt from 'jsonwebtoken';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { JwtPayload, RequestUser } from '../types/jwt-payload.type';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
-  private readonly logger = new Logger(AuthGuard.name);
-
   constructor(
     private readonly reflector: Reflector,
     private readonly configService: ConfigService,
-  ) {}
+    @Inject(WINSTON_MODULE_NEST_PROVIDER)
+    private readonly logger: LoggerService,
+  ) { }
 
   canActivate(context: ExecutionContext): boolean {
     // Skip auth for @Public() endpoints

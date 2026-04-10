@@ -22,7 +22,7 @@
         "docker:up": "docker compose -f infra/docker/docker-compose.dev.yml up -d",
         "docker:down": "docker compose -f infra/docker/docker-compose.dev.yml down",
         "docker:logs": "docker compose -f infra/docker/docker-compose.dev.yml logs -f",
-        "docker:reset": "docker compose -f infra/docker/docker-compose.dev.yml down -v && docker compose -f infra/docker/docker-compose.dev.yml up -d",
+        "docker:reset:hard": "echo '⚠️  WARNING: This will DELETE all Redis data volumes!' && docker compose -f infra/docker/docker-compose.dev.yml down -v && docker compose -f infra/docker/docker-compose.dev.yml up -d",
         "supabase:start": "npx supabase start --workdir infra/supabase",
         "supabase:stop": "npx supabase stop --workdir infra/supabase",
         "supabase:status": "npx supabase status --workdir infra/supabase",

@@ -2,10 +2,19 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { AuthGuard } from './auth.guard';
 import * as jwt from 'jsonwebtoken';
 
 const TEST_SECRET = 'test-jwt-secret-for-unit-testing';
+
+const mockLogger = {
+  log: jest.fn(),
+  error: jest.fn(),
+  warn: jest.fn(),
+  debug: jest.fn(),
+  verbose: jest.fn(),
+};
 
 function createMockContext(
   headers: Record<string, string> = {},
@@ -46,6 +55,10 @@ describe('AuthGuard', () => {
           useValue: {
             getAllAndOverride: jest.fn().mockReturnValue(false),
           },
+        },
+        {
+          provide: WINSTON_MODULE_NEST_PROVIDER,
+          useValue: mockLogger,
         },
       ],
     }).compile();
@@ -208,6 +221,10 @@ describe('AuthGuard', () => {
         {
           provide: Reflector,
           useValue: { getAllAndOverride: jest.fn().mockReturnValue(false) },
+        },
+        {
+          provide: WINSTON_MODULE_NEST_PROVIDER,
+          useValue: mockLogger,
         },
       ],
     }).compile();

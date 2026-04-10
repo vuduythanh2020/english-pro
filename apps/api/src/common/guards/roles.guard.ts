@@ -9,7 +9,7 @@ import { ROLES_KEY } from '../decorators/roles.decorator';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
-  constructor(private readonly reflector: Reflector) {}
+  constructor(private readonly reflector: Reflector) { }
 
   canActivate(context: ExecutionContext): boolean {
     const requiredRoles = this.reflector.getAllAndOverride<string[]>(
@@ -23,7 +23,7 @@ export class RolesGuard implements CanActivate {
 
     if (!requiredRoles.includes(user.role)) {
       throw new ForbiddenException(
-        `Role '${user.role}' not authorized. Required: ${requiredRoles.join(', ')}`,
+        'Insufficient permissions for this resource',
       );
     }
     return true;

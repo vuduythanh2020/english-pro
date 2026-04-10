@@ -12,6 +12,10 @@ import { createLoggerConfig } from './config/logger.config';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    // ⚠️ IMPORTANT: WinstonModule MUST be imported BEFORE CommonModule.
+    // CommonModule's LoggingInterceptor depends on WINSTON_MODULE_PROVIDER
+    // which is registered by WinstonModule. Changing this order will cause
+    // a DI resolution error at runtime.
     WinstonModule.forRoot(createLoggerConfig()),
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60000, limit: 60 }]),
     PrismaModule,
@@ -20,4 +24,4 @@ import { createLoggerConfig } from './config/logger.config';
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
-export class AppModule {}
+export class AppModule { }
