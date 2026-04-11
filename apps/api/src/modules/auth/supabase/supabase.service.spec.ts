@@ -3,8 +3,14 @@ import { ConfigService } from '@nestjs/config';
 import { SupabaseService } from './supabase.service';
 
 // Mock @supabase/supabase-js
-const mockAnonAuth = { signUp: jest.fn() };
-const mockAdminAuth = { signUp: jest.fn() };
+const mockAnonAuth = {
+  signUp: jest.fn(),
+  signInWithPassword: jest.fn(),
+  refreshSession: jest.fn(),
+};
+const mockAdminAuth = {
+  signUp: jest.fn(),
+};
 
 jest.mock('@supabase/supabase-js', () => ({
   createClient: jest.fn((url: string, key: string) => {
@@ -76,17 +82,22 @@ describe('SupabaseService', () => {
           return 'value';
         }),
       } as any;
-      expect(() => new SupabaseService(badConfig)).toThrow('Missing SUPABASE_URL');
+      expect(() => new SupabaseService(badConfig)).toThrow(
+        'Missing SUPABASE_URL',
+      );
     });
 
     it('should throw if SUPABASE_ANON_KEY is missing', () => {
       const badConfig = {
         getOrThrow: jest.fn((key: string) => {
-          if (key === 'SUPABASE_ANON_KEY') throw new Error('Missing SUPABASE_ANON_KEY');
+          if (key === 'SUPABASE_ANON_KEY')
+            throw new Error('Missing SUPABASE_ANON_KEY');
           return 'value';
         }),
       } as any;
-      expect(() => new SupabaseService(badConfig)).toThrow('Missing SUPABASE_ANON_KEY');
+      expect(() => new SupabaseService(badConfig)).toThrow(
+        'Missing SUPABASE_ANON_KEY',
+      );
     });
 
     it('should throw if SUPABASE_SERVICE_ROLE_KEY is missing', () => {
@@ -150,6 +161,121 @@ describe('SupabaseService', () => {
   describe('onModuleDestroy', () => {
     it('should not throw on cleanup', () => {
       expect(() => service.onModuleDestroy()).not.toThrow();
+    });
+  });
+
+  describe('signIn', () => {
+    const mockSession = {
+      access_token: 'access-token',
+      refresh_token: 'refresh-token',
+    };
+    const mockUser = { id: 'user-id', email: 'parent@example.com' };
+
+    it('should call anonClient.auth.signInWithPassword (happy path)', async () => {
+      mockAnonAuth.signInWithPassword.mockResolvedValue({
+        data: { user: mockUser, session: mockSession },
+        error: null,
+      });
+
+      const result = await service.signIn('parent@example.com', 'anypassword');
+
+      expect(mockAnonAuth.signInWithPassword).toHaveBeenCalledWith({
+        email: 'parent@example.com',
+        password: 'anypassword',
+      });
+      expect(result).toEqual({ user: mockUser, session: mockSession });
+    });
+
+    it('should throw when Supabase returns invalid credentials error', async () => {
+      const credentialsError = {
+        message: 'Invalid login credentials',
+        code: 'invalid_credentials',
+        status: 400,
+        __isAuthError: true,
+      };
+
+      mockAnonAuth.signInWithPassword.mockResolvedValue({
+        data: { user: null, session: null },
+        error: credentialsError,
+      });
+
+      await expect(
+        service.signIn('wrong@example.com', 'wrongpass'),
+      ).rejects.toEqual(credentialsError);
+    });
+
+    it('should throw when Supabase returns rate limit error', async () => {
+      const rateLimitError = {
+        message: 'Rate limit exceeded',
+        status: 429,
+      };
+
+      mockAnonAuth.signInWithPassword.mockResolvedValue({
+        data: { user: null, session: null },
+        error: rateLimitError,
+      });
+
+      await expect(
+        service.signIn('parent@example.com', 'anypassword'),
+      ).rejects.toEqual(rateLimitError);
+    });
+  });
+
+  describe('refreshSession', () => {
+    const mockSession = {
+      access_token: 'new-access-token',
+      refresh_token: 'new-refresh-token',
+    };
+    const mockUser = { id: 'user-id', email: 'parent@example.com' };
+
+    it('should call anonClient.auth.refreshSession (happy path)', async () => {
+      mockAnonAuth.refreshSession.mockResolvedValue({
+        data: { user: mockUser, session: mockSession },
+        error: null,
+      });
+
+      const result = await service.refreshSession('valid-refresh-token');
+
+      expect(mockAnonAuth.refreshSession).toHaveBeenCalledWith({
+        refresh_token: 'valid-refresh-token',
+      });
+      expect(result).toEqual({ user: mockUser, session: mockSession });
+    });
+
+    it('should throw when Supabase returns token not found error', async () => {
+      const tokenError = {
+        message: 'Invalid Refresh Token: Already Used',
+        code: 'refresh_token_not_found',
+        status: 400,
+        __isAuthError: true,
+      };
+
+      mockAnonAuth.refreshSession.mockResolvedValue({
+        data: { user: null, session: null },
+        error: tokenError,
+      });
+
+      await expect(service.refreshSession('expired-token')).rejects.toEqual(
+        tokenError,
+      );
+    });
+
+    it('should throw when Supabase returns session not found error', async () => {
+      const sessionError = {
+        message: 'Session not found',
+        code: 'session_not_found',
+        status: 400,
+        __isAuthError: true,
+      };
+
+      mockAnonAuth.refreshSession.mockResolvedValue({
+        data: { user: null, session: null },
+        error: sessionError,
+      });
+
+      await expect(service.refreshSession('invalid-token')).rejects.toEqual(
+        sessionError,
+      );
     });
   });
 });

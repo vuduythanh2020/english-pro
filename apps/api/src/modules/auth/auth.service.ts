@@ -3,6 +3,8 @@ import type { LoggerService } from '@nestjs/common';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { SupabaseService } from './supabase/supabase.service';
 import { RegisterDto } from './dto/register.dto';
+import { LoginDto } from './dto/login.dto';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 
 export interface RegisterResult {
   accessToken: string;
@@ -12,6 +14,21 @@ export interface RegisterResult {
     email: string;
     role: string;
   };
+}
+
+export interface LoginResult {
+  accessToken: string;
+  refreshToken: string;
+  user: {
+    id: string;
+    email: string;
+    role: string;
+  };
+}
+
+export interface RefreshResult {
+  accessToken: string;
+  refreshToken: string;
 }
 
 @Injectable()
@@ -142,6 +159,176 @@ export class AuthService {
       throw new HttpException(
         'Đăng ký thất bại. Vui lòng thử lại.',
         HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Authenticates a parent account via Supabase Auth.
+   *
+   * Uses the unified error message for invalid credentials —
+   * does NOT distinguish between wrong email and wrong password (AC4).
+   */
+  async login(dto: LoginDto): Promise<LoginResult> {
+    try {
+      const data = await this.supabaseService.signIn(dto.email, dto.password);
+
+      const session = data.session;
+      const user = data.user;
+
+      if (!session || !user) {
+        this.logger.error(
+          'Login returned no session or user',
+          undefined,
+          'AuthService',
+        );
+        throw new HttpException(
+          'Đăng nhập thất bại. Vui lòng thử lại.',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+
+      this.logger.log(`Parent logged in: ${user.id}`, 'AuthService');
+
+      return {
+        accessToken: session.access_token,
+        refreshToken: session.refresh_token,
+        user: {
+          id: user.id,
+          email: user.email || dto.email,
+          role: 'PARENT',
+        },
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      const supabaseError = error as {
+        message?: string;
+        status?: number;
+        code?: string;
+        __isAuthError?: boolean;
+      };
+
+      this.logger.error(
+        `Login failed: ${supabaseError.message || 'Unknown error'}`,
+        undefined,
+        'AuthService',
+      );
+
+      // Invalid credentials — unified message (AC4: do NOT reveal which field is wrong)
+      if (
+        supabaseError.code === 'invalid_credentials' ||
+        supabaseError.message
+          ?.toLowerCase()
+          .includes('invalid login credentials') ||
+        supabaseError.status === 400 ||
+        supabaseError.__isAuthError
+      ) {
+        throw new HttpException(
+          'Email hoặc mật khẩu không đúng',
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+
+      // Rate limiting
+      if (supabaseError.status === 429) {
+        throw new HttpException(
+          'Quá nhiều yêu cầu. Vui lòng thử lại sau.',
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
+
+      // Supabase unavailable
+      if (
+        supabaseError.status === 503 ||
+        supabaseError.message?.includes('fetch failed') ||
+        supabaseError.message?.includes('ECONNREFUSED')
+      ) {
+        throw new HttpException(
+          'Dịch vụ xác thực tạm thời không khả dụng',
+          HttpStatus.SERVICE_UNAVAILABLE,
+        );
+      }
+
+      throw new HttpException(
+        'Đăng nhập thất bại. Vui lòng thử lại.',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Refreshes an access token using the provided refresh token.
+   *
+   * Supabase automatically rotates the refresh token on success —
+   * the old refresh token is invalidated and a new one is returned.
+   */
+  async refresh(dto: RefreshTokenDto): Promise<RefreshResult> {
+    try {
+      const data = await this.supabaseService.refreshSession(dto.refreshToken);
+
+      const session = data.session;
+
+      if (!session) {
+        throw new HttpException(
+          'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+
+      return {
+        accessToken: session.access_token,
+        refreshToken: session.refresh_token,
+      };
+    } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      const supabaseError = error as {
+        message?: string;
+        status?: number;
+        code?: string;
+        __isAuthError?: boolean;
+      };
+
+      this.logger.error(
+        `Token refresh failed: ${supabaseError.message || 'Unknown error'}`,
+        undefined,
+        'AuthService',
+      );
+
+      // Invalid or expired refresh token
+      if (
+        supabaseError.code === 'refresh_token_not_found' ||
+        supabaseError.code === 'session_not_found' ||
+        supabaseError.status === 400 ||
+        supabaseError.status === 401 ||
+        supabaseError.__isAuthError
+      ) {
+        throw new HttpException(
+          'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+
+      // Supabase unavailable
+      if (
+        supabaseError.status === 503 ||
+        supabaseError.message?.includes('fetch failed') ||
+        supabaseError.message?.includes('ECONNREFUSED')
+      ) {
+        throw new HttpException(
+          'Dịch vụ xác thực tạm thời không khả dụng',
+          HttpStatus.SERVICE_UNAVAILABLE,
+        );
+      }
+
+      throw new HttpException(
+        'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+        HttpStatus.UNAUTHORIZED,
       );
     }
   }

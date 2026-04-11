@@ -4,8 +4,10 @@ import 'package:english_pro/app/router/placeholder_screens.dart';
 import 'package:english_pro/app/widgets/app_bottom_navigation.dart';
 import 'package:english_pro/core/auth/auth_bloc.dart';
 import 'package:english_pro/core/auth/auth_state.dart';
+import 'package:english_pro/features/auth/bloc/login_bloc.dart';
 import 'package:english_pro/features/auth/bloc/registration_bloc.dart';
 import 'package:english_pro/features/auth/repositories/auth_repository.dart';
+import 'package:english_pro/features/auth/view/login_screen.dart';
 import 'package:english_pro/features/auth/view/registration_screen.dart';
 import 'package:english_pro/features/settings/view/settings_screen.dart';
 import 'package:flutter/foundation.dart';
@@ -53,7 +55,10 @@ GoRouter createRouter(AuthBloc authBloc, {required AuthRepository authRepository
       ),
       GoRoute(
         path: '/login',
-        builder: (_, _) => const LoginPlaceholderScreen(),
+        builder: (context, _) => BlocProvider(
+          create: (_) => LoginBloc(authRepository: authRepository),
+          child: const LoginScreen(),
+        ),
       ),
       GoRoute(
         path: '/register',

@@ -18,6 +18,8 @@ describe('AuthService', () => {
 
   const mockSupabaseService = {
     signUp: jest.fn(),
+    signIn: jest.fn(),
+    refreshSession: jest.fn(),
     getAdminClient: jest.fn(),
     onModuleDestroy: jest.fn(),
   };
@@ -105,7 +107,10 @@ describe('AuthService', () => {
       });
 
       await expect(service.register(registerDto)).rejects.toThrow(
-        new HttpException('Email đã được đăng ký', HttpStatus.UNPROCESSABLE_ENTITY),
+        new HttpException(
+          'Email đã được đăng ký',
+          HttpStatus.UNPROCESSABLE_ENTITY,
+        ),
       );
     });
 
@@ -117,13 +122,17 @@ describe('AuthService', () => {
       });
 
       await expect(service.register(registerDto)).rejects.toThrow(
-        new HttpException('Email đã được đăng ký', HttpStatus.UNPROCESSABLE_ENTITY),
+        new HttpException(
+          'Email đã được đăng ký',
+          HttpStatus.UNPROCESSABLE_ENTITY,
+        ),
       );
     });
 
     it('should throw 400 for Supabase validation errors without leaking raw message', async () => {
       mockSupabaseService.signUp.mockRejectedValue({
-        message: 'Password should be at least 6 characters. Internal schema: passwords table',
+        message:
+          'Password should be at least 6 characters. Internal schema: passwords table',
         status: 400,
       });
 
@@ -134,7 +143,8 @@ describe('AuthService', () => {
         expect((e as HttpException).getStatus()).toBe(HttpStatus.BAD_REQUEST);
         // Must NOT forward raw Supabase message to client
         const response = (e as HttpException).getResponse();
-        const message = typeof response === 'string' ? response : (response as any).message;
+        const message =
+          typeof response === 'string' ? response : (response as any).message;
         expect(message).not.toContain('passwords table');
         expect(message).toBe('Dữ liệu đăng ký không hợp lệ');
       }
@@ -206,7 +216,9 @@ describe('AuthService', () => {
         await service.register(registerDto);
         fail('Should have thrown');
       } catch (e) {
-        expect((e as HttpException).getStatus()).toBe(HttpStatus.INTERNAL_SERVER_ERROR);
+        expect((e as HttpException).getStatus()).toBe(
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
       }
       // Should log error (not warn) — this is a misconfiguration
       expect(mockLogger.error).toHaveBeenCalled();
@@ -223,12 +235,16 @@ describe('AuthService', () => {
         await service.register(registerDto);
         fail('Should have thrown');
       } catch (e) {
-        expect((e as HttpException).getStatus()).toBe(HttpStatus.INTERNAL_SERVER_ERROR);
+        expect((e as HttpException).getStatus()).toBe(
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
       }
     });
 
     it('should throw 500 for unknown errors', async () => {
-      mockSupabaseService.signUp.mockRejectedValue(new Error('Something broke'));
+      mockSupabaseService.signUp.mockRejectedValue(
+        new Error('Something broke'),
+      );
 
       await expect(service.register(registerDto)).rejects.toThrow(
         new HttpException(
@@ -262,6 +278,245 @@ describe('AuthService', () => {
           }
         }
       }
+    });
+  });
+
+  describe('login', () => {
+    const loginDto = {
+      email: 'parent@example.com',
+      password: 'anypassword',
+    };
+
+    const mockSession = {
+      access_token: 'new-access-token',
+      refresh_token: 'new-refresh-token',
+    };
+
+    const mockUser = {
+      id: 'auth-user-uuid',
+      email: 'parent@example.com',
+    };
+
+    it('should login successfully and return tokens (AC1)', async () => {
+      mockSupabaseService.signIn.mockResolvedValue({
+        user: mockUser,
+        session: mockSession,
+      });
+
+      const result = await service.login(loginDto);
+
+      expect(result).toEqual({
+        accessToken: 'new-access-token',
+        refreshToken: 'new-refresh-token',
+        user: {
+          id: 'auth-user-uuid',
+          email: 'parent@example.com',
+          role: 'PARENT',
+        },
+      });
+      expect(mockSupabaseService.signIn).toHaveBeenCalledWith(
+        'parent@example.com',
+        'anypassword',
+      );
+    });
+
+    it('should throw 401 with unified error for invalid credentials (AC4)', async () => {
+      mockSupabaseService.signIn.mockRejectedValue({
+        message: 'Invalid login credentials',
+        status: 400,
+        __isAuthError: true,
+      });
+
+      await expect(service.login(loginDto)).rejects.toThrow(
+        new HttpException(
+          'Email hoặc mật khẩu không đúng',
+          HttpStatus.UNAUTHORIZED,
+        ),
+      );
+    });
+
+    it('should throw 401 via invalid_credentials code (AC4)', async () => {
+      mockSupabaseService.signIn.mockRejectedValue({
+        message: 'invalid_credentials',
+        code: 'invalid_credentials',
+        status: 400,
+        __isAuthError: true,
+      });
+
+      await expect(service.login(loginDto)).rejects.toThrow(
+        new HttpException(
+          'Email hoặc mật khẩu không đúng',
+          HttpStatus.UNAUTHORIZED,
+        ),
+      );
+    });
+
+    it('should throw 429 for rate limiting (AC5)', async () => {
+      mockSupabaseService.signIn.mockRejectedValue({
+        message: 'Rate limit exceeded',
+        status: 429,
+      });
+
+      await expect(service.login(loginDto)).rejects.toThrow(
+        new HttpException(
+          'Quá nhiều yêu cầu. Vui lòng thử lại sau.',
+          HttpStatus.TOO_MANY_REQUESTS,
+        ),
+      );
+    });
+
+    it('should throw 503 when Supabase is unavailable', async () => {
+      mockSupabaseService.signIn.mockRejectedValue({
+        message: 'fetch failed',
+        status: undefined,
+      });
+
+      await expect(service.login(loginDto)).rejects.toThrow(
+        new HttpException(
+          'Dịch vụ xác thực tạm thời không khả dụng',
+          HttpStatus.SERVICE_UNAVAILABLE,
+        ),
+      );
+    });
+
+    it('should throw 503 for ECONNREFUSED', async () => {
+      mockSupabaseService.signIn.mockRejectedValue({
+        message: 'connect ECONNREFUSED 127.0.0.1:54321',
+        status: undefined,
+      });
+
+      await expect(service.login(loginDto)).rejects.toThrow(
+        new HttpException(
+          'Dịch vụ xác thực tạm thời không khả dụng',
+          HttpStatus.SERVICE_UNAVAILABLE,
+        ),
+      );
+    });
+
+    it('should throw 500 when session is null despite successful call', async () => {
+      mockSupabaseService.signIn.mockResolvedValue({
+        user: mockUser,
+        session: null,
+      });
+
+      await expect(service.login(loginDto)).rejects.toThrow(HttpException);
+      const call = await service.login(loginDto).catch((e: HttpException) => e);
+      expect((call as HttpException).getStatus()).toBe(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    });
+
+    it('should not log the password in any logger call', async () => {
+      mockSupabaseService.signIn.mockRejectedValue({
+        message: 'Unknown error',
+        status: 500,
+      });
+
+      try {
+        await service.login({
+          email: 'test@example.com',
+          password: 'Secret123',
+        });
+      } catch {
+        // Expected
+      }
+
+      const allCalls = [
+        ...mockLogger.log.mock.calls,
+        ...mockLogger.error.mock.calls,
+        ...mockLogger.warn.mock.calls,
+      ];
+      for (const call of allCalls) {
+        for (const arg of call) {
+          if (typeof arg === 'string') {
+            expect(arg).not.toContain('Secret123');
+          }
+        }
+      }
+    });
+  });
+
+  describe('refresh', () => {
+    const refreshDto = { refreshToken: 'valid-refresh-token' };
+
+    it('should refresh successfully and return new tokens (AC2)', async () => {
+      mockSupabaseService.refreshSession.mockResolvedValue({
+        user: { id: 'auth-user-uuid', email: 'parent@example.com' },
+        session: {
+          access_token: 'new-access-token',
+          refresh_token: 'new-refresh-token',
+        },
+      });
+
+      const result = await service.refresh(refreshDto);
+
+      expect(result).toEqual({
+        accessToken: 'new-access-token',
+        refreshToken: 'new-refresh-token',
+      });
+      expect(mockSupabaseService.refreshSession).toHaveBeenCalledWith(
+        'valid-refresh-token',
+      );
+    });
+
+    it('should throw 401 for invalid refresh token', async () => {
+      mockSupabaseService.refreshSession.mockRejectedValue({
+        message: 'Invalid Refresh Token: Already Used',
+        code: 'refresh_token_not_found',
+        status: 400,
+        __isAuthError: true,
+      });
+
+      await expect(service.refresh(refreshDto)).rejects.toThrow(
+        new HttpException(
+          'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+          HttpStatus.UNAUTHORIZED,
+        ),
+      );
+    });
+
+    it('should throw 401 for expired session', async () => {
+      mockSupabaseService.refreshSession.mockRejectedValue({
+        message: 'Session not found',
+        code: 'session_not_found',
+        status: 400,
+        __isAuthError: true,
+      });
+
+      await expect(service.refresh(refreshDto)).rejects.toThrow(
+        new HttpException(
+          'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+          HttpStatus.UNAUTHORIZED,
+        ),
+      );
+    });
+
+    it('should throw 401 when session is null after refresh', async () => {
+      mockSupabaseService.refreshSession.mockResolvedValue({
+        user: null,
+        session: null,
+      });
+
+      await expect(service.refresh(refreshDto)).rejects.toThrow(
+        new HttpException(
+          'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+          HttpStatus.UNAUTHORIZED,
+        ),
+      );
+    });
+
+    it('should throw 503 when Supabase is unavailable', async () => {
+      mockSupabaseService.refreshSession.mockRejectedValue({
+        message: 'fetch failed',
+        status: undefined,
+      });
+
+      await expect(service.refresh(refreshDto)).rejects.toThrow(
+        new HttpException(
+          'Dịch vụ xác thực tạm thời không khả dụng',
+          HttpStatus.SERVICE_UNAVAILABLE,
+        ),
+      );
     });
   });
 });

@@ -40,11 +40,7 @@ export class SupabaseService implements OnModuleDestroy {
 
     // Admin client — uses service-role key, bypasses RLS
     // Use ONLY for privileged server-side operations (e.g. admin.getUserById)
-    this.adminClient = createClient(
-      supabaseUrl,
-      serviceRoleKey,
-      clientOptions,
-    );
+    this.adminClient = createClient(supabaseUrl, serviceRoleKey, clientOptions);
   }
 
   /**
@@ -74,6 +70,53 @@ export class SupabaseService implements OnModuleDestroy {
       options: displayName
         ? { data: { display_name: displayName } }
         : undefined,
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  }
+
+  /**
+   * Signs in an existing user via Supabase Auth using the anon key.
+   *
+   * Uses the anon client intentionally — signIn is a public operation
+   * that should not bypass Row Level Security.
+   *
+   * @param email User email address
+   * @param password User password
+   * @returns The user and session data.
+   * @throws Error if sign-in fails (e.g. invalid credentials, rate limit).
+   */
+  async signIn(email: string, password: string) {
+    const { data, error } = await this.anonClient.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  }
+
+  /**
+   * Refreshes an existing session using a refresh token.
+   *
+   * Uses the anon client — refresh is a public operation.
+   * Supabase automatically rotates the refresh token on success,
+   * invalidating the old one.
+   *
+   * @param refreshToken The current refresh token
+   * @returns New user and session data with rotated tokens.
+   * @throws Error if the token is invalid or expired.
+   */
+  async refreshSession(refreshToken: string) {
+    const { data, error } = await this.anonClient.auth.refreshSession({
+      refresh_token: refreshToken,
     });
 
     if (error) {

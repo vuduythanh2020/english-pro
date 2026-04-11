@@ -41,7 +41,49 @@ class AuthRepository {
     }
   }
 
+  /// Logs in with email and password.
+  ///
+  /// Returns a map with `accessToken`, `refreshToken`, and `user` info.
+  /// Throws [AppException] subtypes on failure.
+  ///
+  /// Error mapping:
+  ///   - 401 → [UnauthorizedException] (invalid credentials — unified message, AC4)
+  ///   - 429 → [ServerException] (rate limit, AC5)
+  ///   - 503 → [ServerException] (service unavailable)
+  ///   - connection error → [NetworkException]
+  Future<Map<String, dynamic>> login({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/api/v1/auth/login',
+        data: {
+          'email': email,
+          'password': password,
+        },
+      );
+
+      final data = response.data?['data'] as Map<String, dynamic>?;
+      if (data == null) {
+        throw const ServerException(message: 'Invalid response from server');
+      }
+
+      return data;
+    } on DioException catch (e) {
+      throw _mapDioError(e);
+    }
+  }
+
   AppException _mapDioError(DioException e) {
+    // Network-level errors (no response)
+    if (e.type == DioExceptionType.connectionError ||
+        e.type == DioExceptionType.connectionTimeout ||
+        e.type == DioExceptionType.receiveTimeout ||
+        e.type == DioExceptionType.sendTimeout) {
+      return const NetworkException();
+    }
+
     final statusCode = e.response?.statusCode;
     final responseData = e.response?.data;
 
