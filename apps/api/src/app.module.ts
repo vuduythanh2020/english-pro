@@ -6,6 +6,7 @@ import { WinstonModule } from 'nest-winston';
 import { PrismaModule } from './prisma/prisma.module';
 import { CommonModule } from './common/common.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { ConsentModule } from './modules/consent/consent.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { createLoggerConfig } from './config/logger.config';
@@ -22,6 +23,7 @@ import { createLoggerConfig } from './config/logger.config';
     PrismaModule,
     CommonModule,
     AuthModule,
+    ConsentModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],

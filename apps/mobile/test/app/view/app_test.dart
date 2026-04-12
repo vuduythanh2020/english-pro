@@ -3,7 +3,7 @@ library;
 
 import 'package:dio/dio.dart';
 import 'package:english_pro/app/app.dart';
-import 'package:english_pro/app/router/placeholder_screens.dart';
+import 'package:english_pro/features/auth/view/login_screen.dart';
 import 'package:english_pro/bootstrap.dart';
 import 'package:english_pro/core/auth/auth_bloc.dart';
 import 'package:english_pro/core/auth/auth_event.dart';
@@ -87,7 +87,7 @@ void main() {
         // Allow async state initialization.
         await tester.pumpAndSettle();
         expect(
-          find.byType(LoginPlaceholderScreen),
+          find.byType(LoginScreen),
           findsOneWidget,
         );
       },

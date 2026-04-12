@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
 import 'package:english_pro/app/router/placeholder_screens.dart';
 import 'package:english_pro/app/widgets/app_bottom_navigation.dart';
 import 'package:english_pro/core/auth/auth_bloc.dart';
@@ -9,6 +10,9 @@ import 'package:english_pro/features/auth/bloc/registration_bloc.dart';
 import 'package:english_pro/features/auth/repositories/auth_repository.dart';
 import 'package:english_pro/features/auth/view/login_screen.dart';
 import 'package:english_pro/features/auth/view/registration_screen.dart';
+import 'package:english_pro/features/onboarding/bloc/consent_bloc.dart';
+import 'package:english_pro/features/onboarding/repositories/consent_repository.dart';
+import 'package:english_pro/features/onboarding/view/consent_screen.dart';
 import 'package:english_pro/features/settings/view/settings_screen.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -69,7 +73,15 @@ GoRouter createRouter(AuthBloc authBloc, {required AuthRepository authRepository
       ),
       GoRoute(
         path: '/consent',
-        builder: (_, _) => const ConsentPlaceholderScreen(),
+        builder: (context, _) => BlocProvider(
+          create: (_) => ConsentBloc(
+            consentRepository: ConsentRepository(
+              dio: context.read<Dio>(),
+            ),
+            authBloc: context.read<AuthBloc>(),
+          ),
+          child: const ConsentScreen(),
+        ),
       ),
 
       // ── Tab navigation via StatefulShellRoute ────────────────────

@@ -16,6 +16,7 @@ class AuthBloc extends HydratedBloc<AuthEvent, AuthState> {
     on<AuthLoggedIn>(_onAuthLoggedIn);
     on<AuthLoggedOut>(_onAuthLoggedOut);
     on<AuthTokenRefreshed>(_onAuthTokenRefreshed);
+    on<AuthConsentGranted>(_onAuthConsentGranted);
   }
 
   final SecureStorageService _storageService;
@@ -27,7 +28,8 @@ class AuthBloc extends HydratedBloc<AuthEvent, AuthState> {
     emit(const AuthLoading());
     final token = await _storageService.getAccessToken();
     if (token != null && token.isNotEmpty) {
-      emit(AuthAuthenticated(accessToken: token));
+      final hasConsent = await _storageService.getHasConsent();
+      emit(AuthAuthenticated(accessToken: token, hasConsent: hasConsent));
     } else {
       emit(const AuthUnauthenticated());
     }
@@ -73,6 +75,34 @@ class AuthBloc extends HydratedBloc<AuthEvent, AuthState> {
           hasConsent: currentState.hasConsent,
         ),
       );
+    }
+  }
+
+  Future<void> _onAuthConsentGranted(
+    AuthConsentGranted event,
+    Emitter<AuthState> emit,
+  ) async {
+    await _storageService.saveHasConsent(true);
+    final currentState = state;
+    if (currentState is AuthAuthenticated) {
+      emit(
+        AuthAuthenticated(
+          accessToken: currentState.accessToken,
+          refreshToken: currentState.refreshToken,
+          userRole: currentState.userRole,
+          hasConsent: true,
+        ),
+      );
+    } else {
+      // Edge case: AuthBloc not yet in AuthAuthenticated (e.g. mid token-refresh).
+      // Re-read token from secure storage to recover gracefully instead of
+      // leaving the user stuck on /consent with no feedback.
+      final token = await _storageService.getAccessToken();
+      if (token != null && token.isNotEmpty) {
+        emit(AuthAuthenticated(accessToken: token, hasConsent: true));
+      }
+      // If token is gone (concurrent logout), do nothing — user will be
+      // redirected to login by AuthGuard on next navigation.
     }
   }
 

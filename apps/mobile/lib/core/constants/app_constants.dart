@@ -24,6 +24,9 @@ abstract final class AppConstants {
   /// Key for the JWT refresh token in secure storage.
   static const String refreshTokenKey = 'auth_refresh_token';
 
+  /// Key for the parental consent flag in secure storage (Story 2.3).
+  static const String hasConsentKey = 'has_consent';
+
   // ── Hive Box Names ─────────────────────────────────────────────────────
   /// Box for user settings / preferences.
   static const String settingsBox = 'settings';
@@ -33,4 +36,9 @@ abstract final class AppConstants {
 
   /// Box for learning progress cache.
   static const String progressBox = 'progress';
+
+  // ── Legal URLs ────────────────────────────────────────────────────
+  /// Privacy policy URL shown on the parental consent screen (Story 2.3).
+  static const String privacyPolicyUrl =
+      'https://englishpro.app/privacy-policy';
 }

@@ -44,6 +44,9 @@ void main() {
         when(
           () => mockStorage.getAccessToken(),
         ).thenAnswer((_) async => 'valid-jwt-token');
+        when(
+          () => mockStorage.getHasConsent(),
+        ).thenAnswer((_) async => false);
         return AuthBloc(storageService: mockStorage);
       },
       act: (bloc) => bloc.add(const AuthStarted()),
@@ -132,44 +135,77 @@ void main() {
   // ---------------------------------------------------------------------------
   // Story 2.3 — Parental Consent & Age Declaration Flow
   // Consent persistence tests (AC7: consent survives app restart & clears on logout)
-  // TDD Red Phase — remove skip when implementing Story 2.3
   // ---------------------------------------------------------------------------
   group(
     'Story 2.3 — Consent persistence in AuthBloc',
-    skip: 'TDD Red Phase — implement AuthConsentGranted event and SecureStorageService.getHasConsent/saveHasConsent',
     () {
       // FLUTTER-CONSENT-AUTH-001
-      // Requires: AuthConsentGranted event in auth_event.dart
-      // Requires: SecureStorageService.saveHasConsent(bool) method
-      // Requires: AuthBloc._onConsentGranted handler that saves & emits hasConsent=true
-      test(
+      blocTest<AuthBloc, AuthState>(
         'FLUTTER-CONSENT-AUTH-001: AuthConsentGranted emits AuthAuthenticated(hasConsent: true) and saves to storage',
-        () => fail(
-          'Not implemented: '
-          '1) Add AuthConsentGranted event to auth_event.dart, '
-          '2) Add saveHasConsent(bool) to SecureStorageService, '
-          '3) Handle AuthConsentGranted in AuthBloc to emit AuthAuthenticated(hasConsent: true) '
-          'and call storageService.saveHasConsent(true)',
-        ),
+        build: () {
+          when(
+            () => mockStorage.saveHasConsent(any()),
+          ).thenAnswer((_) async {});
+          return AuthBloc(storageService: mockStorage);
+        },
+        seed: () => const AuthAuthenticated(accessToken: 'test-token'),
+        act: (bloc) => bloc.add(const AuthConsentGranted()),
+        expect: () => [
+          const AuthAuthenticated(
+            accessToken: 'test-token',
+            hasConsent: true,
+          ),
+        ],
+        verify: (_) {
+          verify(() => mockStorage.saveHasConsent(true)).called(1);
+        },
       );
 
       // FLUTTER-CONSENT-AUTH-002
-      // Requires: SecureStorageService.getHasConsent() method
-      // Requires: AuthBloc._onAuthStarted reads hasConsent from storage and wires into AuthAuthenticated
-      test(
+      blocTest<AuthBloc, AuthState>(
         'FLUTTER-CONSENT-AUTH-002: AuthStarted with hasConsent=true in storage emits AuthAuthenticated(hasConsent: true)',
-        () => fail(
-          'Not implemented: '
-          '1) Add getHasConsent() to SecureStorageService (reads key "has_consent"), '
-          '2) In AuthBloc._onAuthStarted, read hasConsent and pass to '
-          'AuthAuthenticated(accessToken: token, hasConsent: hasConsent)',
-        ),
+        build: () {
+          when(
+            () => mockStorage.getAccessToken(),
+          ).thenAnswer((_) async => 'stored-token');
+          when(
+            () => mockStorage.getHasConsent(),
+          ).thenAnswer((_) async => true);
+          return AuthBloc(storageService: mockStorage);
+        },
+        act: (bloc) => bloc.add(const AuthStarted()),
+        expect: () => [
+          isA<AuthLoading>(),
+          const AuthAuthenticated(
+            accessToken: 'stored-token',
+            hasConsent: true,
+          ),
+        ],
+      );
+
+      // FLUTTER-CONSENT-AUTH-002b — hasConsent=false path
+      blocTest<AuthBloc, AuthState>(
+        'FLUTTER-CONSENT-AUTH-002b: AuthStarted with hasConsent=false in storage emits AuthAuthenticated(hasConsent: false)',
+        build: () {
+          when(
+            () => mockStorage.getAccessToken(),
+          ).thenAnswer((_) async => 'stored-token');
+          when(
+            () => mockStorage.getHasConsent(),
+          ).thenAnswer((_) async => false);
+          return AuthBloc(storageService: mockStorage);
+        },
+        act: (bloc) => bloc.add(const AuthStarted()),
+        expect: () => [
+          isA<AuthLoading>(),
+          const AuthAuthenticated(
+            accessToken: 'stored-token',
+          ),
+        ],
       );
 
       // FLUTTER-CONSENT-AUTH-003
       // Verifies that AuthLoggedOut → clearAll() removes has_consent (AC7 logout path)
-      // NOTE: clearAll() already calls deleteAll() which removes ALL keys.
-      // This test documents that Story 2.3 AC7 logout requirement is met by existing behavior.
       blocTest<AuthBloc, AuthState>(
         'FLUTTER-CONSENT-AUTH-003: AuthLoggedOut calls clearAll which removes has_consent key',
         build: () {
@@ -181,9 +217,56 @@ void main() {
           const AuthUnauthenticated(),
         ],
         verify: (_) {
-          // clearAll() calls _storage.deleteAll() which removes all keys
-          // including 'has_consent' — no special handling needed for logout
           verify(() => mockStorage.clearAll()).called(1);
+        },
+      );
+
+      // FLUTTER-CONSENT-AUTH-004 — F-3 fix: fallback when state is not AuthAuthenticated
+      blocTest<AuthBloc, AuthState>(
+        'FLUTTER-CONSENT-AUTH-004: AuthConsentGranted recovers when state is not '
+        'AuthAuthenticated by re-reading token from storage',
+        build: () {
+          when(
+            () => mockStorage.saveHasConsent(any()),
+          ).thenAnswer((_) async {});
+          when(
+            () => mockStorage.getAccessToken(),
+          ).thenAnswer((_) async => 'recovered-token');
+          return AuthBloc(storageService: mockStorage);
+        },
+        // seed to AuthLoading (simulates mid-token-refresh race)
+        seed: () => const AuthLoading(),
+        act: (bloc) => bloc.add(const AuthConsentGranted()),
+        expect: () => [
+          const AuthAuthenticated(
+            accessToken: 'recovered-token',
+            hasConsent: true,
+          ),
+        ],
+        verify: (_) {
+          verify(() => mockStorage.saveHasConsent(true)).called(1);
+          verify(() => mockStorage.getAccessToken()).called(1);
+        },
+      );
+
+      // FLUTTER-CONSENT-AUTH-005 — concurrent logout edge case
+      blocTest<AuthBloc, AuthState>(
+        'FLUTTER-CONSENT-AUTH-005: AuthConsentGranted emits nothing if token gone '
+        '(concurrent logout)',
+        build: () {
+          when(
+            () => mockStorage.saveHasConsent(any()),
+          ).thenAnswer((_) async {});
+          when(
+            () => mockStorage.getAccessToken(),
+          ).thenAnswer((_) async => null);
+          return AuthBloc(storageService: mockStorage);
+        },
+        seed: () => const AuthLoading(),
+        act: (bloc) => bloc.add(const AuthConsentGranted()),
+        expect: () => [],
+        verify: (_) {
+          verify(() => mockStorage.saveHasConsent(true)).called(1);
         },
       );
     },

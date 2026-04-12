@@ -32,6 +32,20 @@ class SecureStorageService {
   Future<String?> getRefreshToken() =>
       _storage.read(key: AppConstants.refreshTokenKey);
 
+  // ── Parental Consent ──────────────────────────────────────────────
+
+  /// Persists the parental consent flag.
+  Future<void> saveHasConsent(bool value) => _storage.write(
+    key: AppConstants.hasConsentKey,
+    value: value.toString(),
+  );
+
+  /// Returns the stored consent flag, defaulting to `false`.
+  Future<bool> getHasConsent() async {
+    final value = await _storage.read(key: AppConstants.hasConsentKey);
+    return value == 'true';
+  }
+
   // ── Utility ────────────────────────────────────────────────────────
 
   /// Removes all stored values (access + refresh tokens).

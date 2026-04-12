@@ -49,3 +49,8 @@ class AuthTokenRefreshed extends AuthEvent {
   @override
   List<Object?> get props => [accessToken, refreshToken];
 }
+
+/// Fired after the parent grants parental consent (Story 2.3).
+class AuthConsentGranted extends AuthEvent {
+  const AuthConsentGranted();
+}
