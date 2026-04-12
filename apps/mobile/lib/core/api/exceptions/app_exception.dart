@@ -27,6 +27,7 @@ sealed class AppException implements Exception {
       ValidationException() => 'ValidationException',
       TimeoutException() => 'TimeoutException',
       UnknownException() => 'UnknownException',
+      ProfileLimitReachedException() => 'ProfileLimitReachedException',
     };
   }
 }
@@ -94,5 +95,15 @@ class TimeoutException extends AppException {
 class UnknownException extends AppException {
   const UnknownException({
     super.message = 'An unexpected error occurred',
+  });
+}
+
+/// Profile limit reached (422 PROFILE_LIMIT_REACHED).
+///
+/// Thrown when a parent tries to create more than 3 child profiles (Story 2.4).
+class ProfileLimitReachedException extends AppException {
+  const ProfileLimitReachedException({
+    super.message = 'Bạn chỉ có thể tạo tối đa 3 hồ sơ trẻ em',
+    super.statusCode = 422,
   });
 }

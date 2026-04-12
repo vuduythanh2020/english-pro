@@ -17,6 +17,7 @@ class AuthBloc extends HydratedBloc<AuthEvent, AuthState> {
     on<AuthLoggedOut>(_onAuthLoggedOut);
     on<AuthTokenRefreshed>(_onAuthTokenRefreshed);
     on<AuthConsentGranted>(_onAuthConsentGranted);
+    on<AuthChildProfileCreated>(_onAuthChildProfileCreated);
   }
 
   final SecureStorageService _storageService;
@@ -29,7 +30,14 @@ class AuthBloc extends HydratedBloc<AuthEvent, AuthState> {
     final token = await _storageService.getAccessToken();
     if (token != null && token.isNotEmpty) {
       final hasConsent = await _storageService.getHasConsent();
-      emit(AuthAuthenticated(accessToken: token, hasConsent: hasConsent));
+      final hasChildProfile = await _storageService.getHasChildProfile();
+      emit(
+        AuthAuthenticated(
+          accessToken: token,
+          hasConsent: hasConsent,
+          hasChildProfile: hasChildProfile,
+        ),
+      );
     } else {
       emit(const AuthUnauthenticated());
     }
@@ -73,6 +81,7 @@ class AuthBloc extends HydratedBloc<AuthEvent, AuthState> {
           refreshToken: event.refreshToken ?? currentState.refreshToken,
           userRole: currentState.userRole,
           hasConsent: currentState.hasConsent,
+          hasChildProfile: currentState.hasChildProfile,
         ),
       );
     }
@@ -91,6 +100,7 @@ class AuthBloc extends HydratedBloc<AuthEvent, AuthState> {
           refreshToken: currentState.refreshToken,
           userRole: currentState.userRole,
           hasConsent: true,
+          hasChildProfile: currentState.hasChildProfile,
         ),
       );
     } else {
@@ -100,6 +110,45 @@ class AuthBloc extends HydratedBloc<AuthEvent, AuthState> {
       final token = await _storageService.getAccessToken();
       if (token != null && token.isNotEmpty) {
         emit(AuthAuthenticated(accessToken: token, hasConsent: true));
+      }
+      // If token is gone (concurrent logout), do nothing — user will be
+      // redirected to login by AuthGuard on next navigation.
+    }
+  }
+
+  /// Handles [AuthChildProfileCreated]: persists the flag and updates state.
+  ///
+  /// Called after parent successfully creates a child profile (Story 2.4).
+  /// GoRouter re-evaluates guards via GoRouterRefreshStream → redirects
+  /// from `/child-profile-setup` → `/home`.
+  Future<void> _onAuthChildProfileCreated(
+    AuthChildProfileCreated event,
+    Emitter<AuthState> emit,
+  ) async {
+    await _storageService.saveHasChildProfile(true);
+    final currentState = state;
+    if (currentState is AuthAuthenticated) {
+      emit(
+        AuthAuthenticated(
+          accessToken: currentState.accessToken,
+          refreshToken: currentState.refreshToken,
+          userRole: currentState.userRole,
+          hasConsent: currentState.hasConsent,
+          hasChildProfile: true,
+        ),
+      );
+    } else {
+      // Edge case: recover gracefully from unexpected state (e.g. mid token-refresh).
+      // Read BOTH flags from storage so we don't inadvertently reset hasConsent to
+      // false for a user who already granted consent in a previous session.
+      final token = await _storageService.getAccessToken();
+      if (token != null && token.isNotEmpty) {
+        final hasConsent = await _storageService.getHasConsent();
+        emit(AuthAuthenticated(
+          accessToken: token,
+          hasConsent: hasConsent,
+          hasChildProfile: true,
+        ));
       }
       // If token is gone (concurrent logout), do nothing — user will be
       // redirected to login by AuthGuard on next navigation.

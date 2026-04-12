@@ -195,8 +195,8 @@ void main() {
   });
 
   // ─────────────────────────────────────────────────────────────────────────
-  // TDD Red Phase – Story 2.2: AuthRepository.login()
-  // SKIPPED until login() method is implemented on AuthRepository.
+  // Story 2.2: AuthRepository.login() — ACTIVATED (login() implemented)
+  // Tests verify login endpoint contract: success, 401, 429, 503, network error
   // ─────────────────────────────────────────────────────────────────────────
   group(
     'AuthRepository.login',

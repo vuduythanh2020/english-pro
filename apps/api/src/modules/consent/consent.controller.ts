@@ -18,8 +18,7 @@ import { ConsentService } from './consent.service';
 import { CreateConsentDto } from './dto/create-consent.dto';
 
 /** Loose IPv4 / IPv6 pattern for basic format validation of stored IP addresses. */
-const IP_PATTERN =
-  /^(?:\d{1,3}\.){3}\d{1,3}$|^[0-9a-fA-F:]{2,39}$/;
+const IP_PATTERN = /^(?:\d{1,3}\.){3}\d{1,3}$|^[0-9a-fA-F:]{2,39}$/;
 
 /**
  * Extracts and validates the client IP address from the request.

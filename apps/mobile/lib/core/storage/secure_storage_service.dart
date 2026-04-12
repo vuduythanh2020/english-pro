@@ -46,6 +46,20 @@ class SecureStorageService {
     return value == 'true';
   }
 
+  // ── Child Profile ──────────────────────────────────────────────────
+
+  /// Persists the child profile creation flag (Story 2.4).
+  Future<void> saveHasChildProfile(bool value) => _storage.write(
+    key: AppConstants.hasChildProfileKey,
+    value: value.toString(),
+  );
+
+  /// Returns the stored child profile flag, defaulting to `false` (Story 2.4).
+  Future<bool> getHasChildProfile() async {
+    final value = await _storage.read(key: AppConstants.hasChildProfileKey);
+    return value == 'true';
+  }
+
   // ── Utility ────────────────────────────────────────────────────────
 
   /// Removes all stored values (access + refresh tokens).

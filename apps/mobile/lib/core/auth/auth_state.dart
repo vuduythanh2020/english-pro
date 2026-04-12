@@ -25,6 +25,7 @@ class AuthAuthenticated extends AuthState {
     this.refreshToken,
     this.userRole,
     this.hasConsent = false,
+    this.hasChildProfile = false,
   });
 
   final String accessToken;
@@ -36,8 +37,19 @@ class AuthAuthenticated extends AuthState {
   /// (wired in Story 2.3).
   final bool hasConsent;
 
+  /// Whether the parent has created at least one child profile.
+  /// Defaults to `false`; set to `true` once child profile is created
+  /// (wired in Story 2.4).
+  final bool hasChildProfile;
+
   @override
-  List<Object?> get props => [accessToken, refreshToken, userRole, hasConsent];
+  List<Object?> get props => [
+    accessToken,
+    refreshToken,
+    userRole,
+    hasConsent,
+    hasChildProfile,
+  ];
 }
 
 /// The user is not authenticated (no tokens / expired).

@@ -188,8 +188,9 @@ void main() {
           refreshToken: 'r',
           userRole: 'CHILD',
           hasConsent: true,
+          hasChildProfile: false,
         );
-        expect(state.props, ['a', 'r', 'CHILD', true]);
+        expect(state.props, ['a', 'r', 'CHILD', true, false]);
       });
     });
 

@@ -10,8 +10,11 @@ import 'package:english_pro/features/auth/bloc/registration_bloc.dart';
 import 'package:english_pro/features/auth/repositories/auth_repository.dart';
 import 'package:english_pro/features/auth/view/login_screen.dart';
 import 'package:english_pro/features/auth/view/registration_screen.dart';
+import 'package:english_pro/features/onboarding/bloc/child_profile_bloc.dart';
 import 'package:english_pro/features/onboarding/bloc/consent_bloc.dart';
+import 'package:english_pro/features/onboarding/repositories/children_repository.dart';
 import 'package:english_pro/features/onboarding/repositories/consent_repository.dart';
+import 'package:english_pro/features/onboarding/view/child_profile_setup_screen.dart';
 import 'package:english_pro/features/onboarding/view/consent_screen.dart';
 import 'package:english_pro/features/settings/view/settings_screen.dart';
 import 'package:flutter/foundation.dart';
@@ -50,6 +53,18 @@ GoRouter createRouter(AuthBloc authBloc, {required AuthRepository authRepository
         if (hasConsent && isConsentRoute) return '/home';
       }
 
+      // ── Child profile guard ────────────────────────────────────────
+      if (isLoggedIn) {
+        final hasConsent = authState.hasConsent;
+        final hasChildProfile = authState.hasChildProfile;
+        final isChildProfileRoute = location == '/child-profile-setup';
+
+        if (hasConsent && !hasChildProfile && !isChildProfileRoute) {
+          return '/child-profile-setup';
+        }
+        if (hasChildProfile && isChildProfileRoute) return '/home';
+      }
+
       return null;
     },
     routes: [
@@ -81,6 +96,18 @@ GoRouter createRouter(AuthBloc authBloc, {required AuthRepository authRepository
             authBloc: context.read<AuthBloc>(),
           ),
           child: const ConsentScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/child-profile-setup',
+        builder: (context, _) => BlocProvider(
+          create: (_) => ChildProfileBloc(
+            childrenRepository: ChildrenRepository(
+              dio: context.read<Dio>(),
+            ),
+            authBloc: context.read<AuthBloc>(),
+          ),
+          child: const ChildProfileSetupScreen(),
         ),
       ),
 

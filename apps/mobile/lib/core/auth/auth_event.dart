@@ -54,3 +54,8 @@ class AuthTokenRefreshed extends AuthEvent {
 class AuthConsentGranted extends AuthEvent {
   const AuthConsentGranted();
 }
+
+/// Fired after the parent creates a child profile (Story 2.4).
+class AuthChildProfileCreated extends AuthEvent {
+  const AuthChildProfileCreated();
+}

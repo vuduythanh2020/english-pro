@@ -27,6 +27,9 @@ abstract final class AppConstants {
   /// Key for the parental consent flag in secure storage (Story 2.3).
   static const String hasConsentKey = 'has_consent';
 
+  /// Key for the child profile flag in secure storage (Story 2.4).
+  static const String hasChildProfileKey = 'has_child_profile';
+
   // ── Hive Box Names ─────────────────────────────────────────────────────
   /// Box for user settings / preferences.
   static const String settingsBox = 'settings';

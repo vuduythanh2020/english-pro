@@ -7,6 +7,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { CommonModule } from './common/common.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ConsentModule } from './modules/consent/consent.module';
+import { ChildrenModule } from './modules/children/children.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { createLoggerConfig } from './config/logger.config';
@@ -24,8 +25,9 @@ import { createLoggerConfig } from './config/logger.config';
     CommonModule,
     AuthModule,
     ConsentModule,
+    ChildrenModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
-export class AppModule {}
+export class AppModule { }
