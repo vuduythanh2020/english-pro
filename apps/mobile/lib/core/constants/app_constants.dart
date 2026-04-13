@@ -40,6 +40,18 @@ abstract final class AppConstants {
   /// Written when switching to child, cleared when switching back or logging out.
   static const String parentAccessTokenKey = 'parent_access_token_snapshot';
 
+  /// Key for the parental gate PIN hash in secure storage (Story 2.6).
+  static const String parentalGatePinHashKey = 'parental_gate_pin_hash';
+
+  /// Key for the flag indicating PIN has been set up (Story 2.6).
+  static const String parentalGatePinSetKey = 'parental_gate_pin_set';
+
+  /// Maximum number of wrong PIN attempts before cooldown (Story 2.6).
+  static const int parentalGateMaxAttempts = 3;
+
+  /// Cooldown duration in seconds after exceeding max PIN attempts (Story 2.6).
+  static const int parentalGateCooldownSeconds = 30;
+
   // ── Hive Box Names ─────────────────────────────────────────────────────
   /// Box for user settings / preferences.
   static const String settingsBox = 'settings';

@@ -48,6 +48,16 @@ void main() {
     ).thenAnswer((_) async {});
     when(() => mockStorage.clearChildJwt()).thenAnswer((_) async {});
     when(() => mockStorage.clearChildId()).thenAnswer((_) async {});
+    // Parental Gate parent token snapshot (Story 2.6)
+    when(
+      () => mockStorage.saveParentAccessToken(any()),
+    ).thenAnswer((_) async {});
+    when(
+      () => mockStorage.getParentAccessToken(),
+    ).thenAnswer((_) async => null);
+    when(
+      () => mockStorage.clearParentAccessToken(),
+    ).thenAnswer((_) async {});
   });
 
   group('AuthBloc', () {

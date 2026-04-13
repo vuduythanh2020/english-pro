@@ -138,7 +138,7 @@ void main() {
       });
 
       // FLUTTER-SWITCH-REPO-005
-      test('FLUTTER-SWITCH-REPO-005: throws UnauthorizedException on 403 (not parent role)', () async {
+      test('FLUTTER-SWITCH-REPO-005: throws ForbiddenException on 403 (not parent role)', () async {
         when(
           () => mockDio.post<Map<String, dynamic>>(
             '/api/v1/auth/switch-to-child',
@@ -159,7 +159,7 @@ void main() {
 
         expect(
           () => repository.switchToChild('some-child'),
-          throwsA(isA<UnauthorizedException>()),
+          throwsA(isA<ForbiddenException>()),
         );
       });
 
@@ -289,7 +289,7 @@ void main() {
       });
 
       // FLUTTER-SWITCH-REPO-011
-      test('FLUTTER-SWITCH-REPO-011: throws UnauthorizedException on 403', () async {
+      test('FLUTTER-SWITCH-REPO-011: throws ForbiddenException on 403', () async {
         when(
           () => mockDio.post<Map<String, dynamic>>(
             '/api/v1/auth/switch-to-parent',
@@ -309,7 +309,7 @@ void main() {
 
         expect(
           () => repository.switchToParent(),
-          throwsA(isA<UnauthorizedException>()),
+          throwsA(isA<ForbiddenException>()),
         );
       });
 

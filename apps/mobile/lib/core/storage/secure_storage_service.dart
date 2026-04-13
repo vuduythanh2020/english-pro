@@ -105,6 +105,30 @@ class SecureStorageService {
   Future<void> clearParentAccessToken() =>
       _storage.delete(key: AppConstants.parentAccessTokenKey);
 
+  // ── Parental Gate (Story 2.6) ──────────────────────────────────────
+
+  /// Persists the hashed PIN for the parental gate.
+  Future<void> saveParentalGatePinHash(String pinHash) =>
+      _storage.write(key: AppConstants.parentalGatePinHashKey, value: pinHash);
+
+  /// Returns the stored PIN hash, or `null` if no PIN has been set.
+  Future<String?> getParentalGatePinHash() =>
+      _storage.read(key: AppConstants.parentalGatePinHashKey);
+
+  /// Persists the flag indicating the parental gate PIN has been set up.
+  Future<void> saveParentalGatePinSet(bool value) =>
+      _storage.write(
+        key: AppConstants.parentalGatePinSetKey,
+        value: value.toString(),
+      );
+
+  /// Returns whether the parental gate PIN has been set up, defaulting
+  /// to `false`.
+  Future<bool> getParentalGatePinSet() async {
+    final value = await _storage.read(key: AppConstants.parentalGatePinSetKey);
+    return value == 'true';
+  }
+
   // ── Utility ────────────────────────────────────────────────────────
 
   /// Removes all stored values (access + refresh tokens, child JWT, etc.).

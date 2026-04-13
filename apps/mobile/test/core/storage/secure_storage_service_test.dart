@@ -1,4 +1,4 @@
-/// Unit Tests - Story 1.5: SecureStorageService
+/// Unit Tests - Story 1.5 + Story 2.6: SecureStorageService
 library;
 
 import 'package:english_pro/core/constants/app_constants.dart';
@@ -97,6 +97,97 @@ void main() {
       final result = await service.getAccessToken();
 
       expect(result, isNull);
+    });
+
+    // ── Parental Gate (Story 2.6) ──────────────────────────────────
+
+    group('Parental Gate PIN methods (Story 2.6)', () {
+      test('saveParentalGatePinHash writes hash to correct key', () async {
+        when(
+          () => mockStorage.write(
+            key: any(named: 'key'),
+            value: any(named: 'value'),
+          ),
+        ).thenAnswer((_) async {});
+
+        await service.saveParentalGatePinHash('some-hash-value');
+
+        verify(
+          () => mockStorage.write(
+            key: AppConstants.parentalGatePinHashKey,
+            value: 'some-hash-value',
+          ),
+        ).called(1);
+      });
+
+      test('getParentalGatePinHash reads from correct key', () async {
+        when(
+          () => mockStorage.read(key: AppConstants.parentalGatePinHashKey),
+        ).thenAnswer((_) async => 'stored-hash');
+
+        final result = await service.getParentalGatePinHash();
+
+        expect(result, 'stored-hash');
+      });
+
+      test('getParentalGatePinHash returns null when not set', () async {
+        when(
+          () => mockStorage.read(key: AppConstants.parentalGatePinHashKey),
+        ).thenAnswer((_) async => null);
+
+        final result = await service.getParentalGatePinHash();
+
+        expect(result, isNull);
+      });
+
+      test('saveParentalGatePinSet writes flag to correct key', () async {
+        when(
+          () => mockStorage.write(
+            key: any(named: 'key'),
+            value: any(named: 'value'),
+          ),
+        ).thenAnswer((_) async {});
+
+        await service.saveParentalGatePinSet(true);
+
+        verify(
+          () => mockStorage.write(
+            key: AppConstants.parentalGatePinSetKey,
+            value: 'true',
+          ),
+        ).called(1);
+      });
+
+      test('getParentalGatePinSet returns true when set', () async {
+        when(
+          () => mockStorage.read(key: AppConstants.parentalGatePinSetKey),
+        ).thenAnswer((_) async => 'true');
+
+        final result = await service.getParentalGatePinSet();
+
+        expect(result, isTrue);
+      });
+
+      test('getParentalGatePinSet returns false when not set', () async {
+        when(
+          () => mockStorage.read(key: AppConstants.parentalGatePinSetKey),
+        ).thenAnswer((_) async => null);
+
+        final result = await service.getParentalGatePinSet();
+
+        expect(result, isFalse);
+      });
+
+      test('getParentalGatePinSet returns false for non-true value',
+          () async {
+        when(
+          () => mockStorage.read(key: AppConstants.parentalGatePinSetKey),
+        ).thenAnswer((_) async => 'false');
+
+        final result = await service.getParentalGatePinSet();
+
+        expect(result, isFalse);
+      });
     });
   });
 }
