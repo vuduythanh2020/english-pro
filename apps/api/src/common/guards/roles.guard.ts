@@ -9,7 +9,7 @@ import { ROLES_KEY } from '../decorators/roles.decorator';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
-  constructor(private readonly reflector: Reflector) {}
+  constructor(private readonly reflector: Reflector) { }
 
   canActivate(context: ExecutionContext): boolean {
     const requiredRoles = this.reflector.getAllAndOverride<string[]>(
@@ -21,7 +21,11 @@ export class RolesGuard implements CanActivate {
     const { user } = context.switchToHttp().getRequest();
     if (!user) throw new ForbiddenException('No user context');
 
-    if (!requiredRoles.includes(user.role)) {
+    // Normalize role comparison to handle both 'PARENT'/'CHILD' and 'parent'/'child'
+    const userRole = (user.role || '').toUpperCase();
+    const normalizedRequired = requiredRoles.map((r) => r.toUpperCase());
+
+    if (!normalizedRequired.includes(userRole)) {
       throw new ForbiddenException(
         'Insufficient permissions for this resource',
       );

@@ -1,7 +1,10 @@
 import { Injectable, HttpException, HttpStatus, Inject } from '@nestjs/common';
 import type { LoggerService } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
+import * as jwt from 'jsonwebtoken';
 import { SupabaseService } from './supabase/supabase.service';
+import { PrismaService } from '../../prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
@@ -31,10 +34,27 @@ export interface RefreshResult {
   refreshToken: string;
 }
 
+export interface ChildJwtResult {
+  accessToken: string;
+  expiresIn: number;
+  childId: string;
+  childProfile: {
+    displayName: string;
+    avatarId: number;
+  };
+}
+
+export interface ParentSessionResult {
+  accessToken: string;
+  role: string;
+}
+
 @Injectable()
 export class AuthService {
   constructor(
     private readonly supabaseService: SupabaseService,
+    private readonly prisma: PrismaService,
+    private readonly configService: ConfigService,
     @Inject(WINSTON_MODULE_NEST_PROVIDER)
     private readonly logger: LoggerService,
   ) {}
@@ -331,5 +351,147 @@ export class AuthService {
         HttpStatus.UNAUTHORIZED,
       );
     }
+  }
+
+  /**
+   * Generates a child-specific JWT for child session.
+   *
+   * Validates that the child profile belongs to the parent and is active,
+   * then generates a JWT with child-specific claims.
+   *
+   * @param parentId - The parent's UUID (from parent JWT)
+   * @param childId - The child profile UUID to switch to
+   * @returns Child JWT with profile info
+   */
+  async generateChildJwt(
+    parentId: string,
+    childId: string,
+  ): Promise<ChildJwtResult> {
+    // Validate child belongs to parent and is active
+    const childProfile = await this.prisma.childProfile.findFirst({
+      where: { id: childId, parentId, isActive: true },
+    });
+
+    if (!childProfile) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.NOT_FOUND,
+          error: 'CHILD_PROFILE_NOT_FOUND',
+          message: 'Child profile not found or not owned by parent',
+        },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    const secret = this.configService.get<string>('SUPABASE_JWT_SECRET');
+    if (!secret) {
+      this.logger.error(
+        'SUPABASE_JWT_SECRET not configured — cannot generate child JWT',
+        undefined,
+        'AuthService',
+      );
+      throw new HttpException(
+        'Lỗi cấu hình máy chủ',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    const expiresIn = 3600; // 1 hour
+
+    const childJwtPayload = {
+      sub: childId,
+      role: 'child',
+      childId,
+      parentId,
+    };
+
+    const accessToken = jwt.sign(childJwtPayload, secret, {
+      algorithm: 'HS256',
+      expiresIn,
+      noTimestamp: false,
+    });
+
+    this.logger.log(
+      `Child session started: child=${childId}, parent=${parentId}`,
+      'AuthService',
+    );
+
+    return {
+      accessToken,
+      expiresIn,
+      childId,
+      childProfile: {
+        displayName: childProfile.displayName,
+        avatarId: childProfile.avatarId,
+      },
+    };
+  }
+
+  /**
+   * Re-issues a parent session token when switching back from child mode.
+   *
+   * Uses Supabase admin client to get the parent user and generate
+   * a fresh parent JWT.
+   *
+   * @param parentId - The parent's UUID (from child JWT claims)
+   * @returns Parent JWT with role info
+   */
+  async generateParentSessionToken(
+    parentId: string,
+  ): Promise<ParentSessionResult> {
+    const secret = this.configService.get<string>('SUPABASE_JWT_SECRET');
+    if (!secret) {
+      this.logger.error(
+        'SUPABASE_JWT_SECRET not configured — cannot generate parent JWT',
+        undefined,
+        'AuthService',
+      );
+      throw new HttpException(
+        'Lỗi cấu hình máy chủ',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    // Verify parent exists in database
+    const parent = await this.prisma.parent.findUnique({
+      where: { id: parentId },
+    });
+
+    if (!parent) {
+      throw new HttpException(
+        {
+          statusCode: HttpStatus.NOT_FOUND,
+          error: 'PARENT_NOT_FOUND',
+          message: 'Parent account not found',
+        },
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+    const expiresIn = 3600; // 1 hour
+
+    const parentJwtPayload = {
+      sub: parent.authUserId,
+      role: 'parent',
+      user_role: 'PARENT',
+      user_id: parentId,
+      iat: now,
+    };
+
+    const accessToken = jwt.sign(parentJwtPayload, secret, {
+      algorithm: 'HS256',
+      expiresIn,
+    });
+
+    this.logger.log(
+      `Parent session restored: parent=${parentId}`,
+      'AuthService',
+    );
+
+    return {
+      accessToken,
+      role: 'parent',
+    };
   }
 }

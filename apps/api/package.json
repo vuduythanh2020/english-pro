@@ -31,6 +31,7 @@
     "test:acceptance:2-2": "NODE_OPTIONS=--experimental-vm-modules jest --config ./test/jest-acceptance.json --testPathPatterns=story-2-2",
     "test:acceptance:2-3": "NODE_OPTIONS=--experimental-vm-modules jest --config ./test/jest-acceptance.json --testPathPatterns=story-2-3",
     "test:acceptance:2-4": "NODE_OPTIONS=--experimental-vm-modules jest --config ./test/jest-acceptance.json --testPathPatterns=story-2-4",
+    "test:acceptance:2-5": "NODE_OPTIONS=--experimental-vm-modules jest --config ./test/jest-acceptance.json --testPathPatterns=story-2-5",
     "test:all": "jest && jest --config ./test/jest-integration.json && NODE_OPTIONS=--experimental-vm-modules jest --config ./test/jest-acceptance.json",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",

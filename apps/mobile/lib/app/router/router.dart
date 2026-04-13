@@ -1,8 +1,10 @@
 import 'dart:async';
 
 import 'package:dio/dio.dart';
+import 'package:english_pro/app/router/child_placeholder_screens.dart';
 import 'package:english_pro/app/router/placeholder_screens.dart';
 import 'package:english_pro/app/widgets/app_bottom_navigation.dart';
+import 'package:english_pro/app/widgets/child_bottom_navigation_bar.dart';
 import 'package:english_pro/core/auth/auth_bloc.dart';
 import 'package:english_pro/core/auth/auth_state.dart';
 import 'package:english_pro/features/auth/bloc/login_bloc.dart';
@@ -10,17 +12,31 @@ import 'package:english_pro/features/auth/bloc/registration_bloc.dart';
 import 'package:english_pro/features/auth/repositories/auth_repository.dart';
 import 'package:english_pro/features/auth/view/login_screen.dart';
 import 'package:english_pro/features/auth/view/registration_screen.dart';
+import 'package:english_pro/features/home/view/child_home_screen.dart';
 import 'package:english_pro/features/onboarding/bloc/child_profile_bloc.dart';
 import 'package:english_pro/features/onboarding/bloc/consent_bloc.dart';
+import 'package:english_pro/features/onboarding/bloc/profile_selection_bloc.dart';
+import 'package:english_pro/features/onboarding/bloc/profile_selection_event.dart';
+import 'package:english_pro/features/onboarding/repositories/child_switch_repository.dart';
 import 'package:english_pro/features/onboarding/repositories/children_repository.dart';
 import 'package:english_pro/features/onboarding/repositories/consent_repository.dart';
 import 'package:english_pro/features/onboarding/view/child_profile_setup_screen.dart';
 import 'package:english_pro/features/onboarding/view/consent_screen.dart';
+import 'package:english_pro/features/onboarding/view/profile_selection_screen.dart';
 import 'package:english_pro/features/settings/view/settings_screen.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+
+/// Parent-only routes that a child session cannot access.
+const _parentOnlyRoutes = {
+  '/settings',
+  '/consent',
+  '/child-profile-setup',
+  '/profile-selection',
+  '/profile/settings',
+};
 
 /// Creates and configures the application [GoRouter].
 ///
@@ -34,13 +50,22 @@ GoRouter createRouter(AuthBloc authBloc, {required AuthRepository authRepository
     redirect: (context, state) {
       final authState = authBloc.state;
       final isLoggedIn = authState is AuthAuthenticated;
+      final isChildSession = authState is AuthChildSessionActive;
       final location = state.matchedLocation;
 
       // ── Auth guard ─────────────────────────────────────────────────
       final isPublicRoute = location == '/login' || location == '/register';
 
-      if (!isLoggedIn && !isPublicRoute) return '/login';
-      if (isLoggedIn && isPublicRoute) return '/home';
+      if (!isLoggedIn && !isChildSession && !isPublicRoute) return '/login';
+      if ((isLoggedIn || isChildSession) && isPublicRoute) return '/home';
+
+      // ── Child session guard ─────────────────────────────────────────
+      // If child session is active, redirect away from parent-only routes
+      if (isChildSession) {
+        if (_parentOnlyRoutes.contains(location)) return '/home';
+        // Child session is active — no further redirects needed
+        return null;
+      }
 
       // ── Consent guard ──────────────────────────────────────────────
       if (isLoggedIn) {
@@ -62,7 +87,25 @@ GoRouter createRouter(AuthBloc authBloc, {required AuthRepository authRepository
         if (hasConsent && !hasChildProfile && !isChildProfileRoute) {
           return '/child-profile-setup';
         }
-        if (hasChildProfile && isChildProfileRoute) return '/home';
+        if (hasChildProfile && isChildProfileRoute) return '/profile-selection';
+      }
+
+      // ── Profile selection guard ────────────────────────────────────
+      if (isLoggedIn) {
+        final hasConsent = authState.hasConsent;
+        final hasChildProfile = authState.hasChildProfile;
+        final isProfileSelectionRoute = location == '/profile-selection';
+
+        // Parent with completed onboarding but NOT in child session
+        // must be on profile-selection. Exclude onboarding routes and
+        // parent-only routes that are legitimately accessible before switching.
+        if (hasConsent &&
+            hasChildProfile &&
+            !isProfileSelectionRoute &&
+            !_parentOnlyRoutes.contains(location) &&
+            location != '/') {
+          return '/profile-selection';
+        }
       }
 
       return null;
@@ -110,10 +153,31 @@ GoRouter createRouter(AuthBloc authBloc, {required AuthRepository authRepository
           child: const ChildProfileSetupScreen(),
         ),
       ),
+      GoRoute(
+        path: '/profile-selection',
+        builder: (context, _) => BlocProvider(
+          create: (_) => ProfileSelectionBloc(
+            childrenRepository: ChildrenRepository(
+              dio: context.read<Dio>(),
+            ),
+            childSwitchRepository: ChildSwitchRepository(
+              dio: context.read<Dio>(),
+            ),
+            authBloc: context.read<AuthBloc>(),
+          )..add(const ProfileSelectionStarted()),
+          child: const ProfileSelectionScreen(),
+        ),
+      ),
 
       // ── Tab navigation via StatefulShellRoute ────────────────────
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
+          final authState = context.watch<AuthBloc>().state;
+          final isChildSession = authState is AuthChildSessionActive;
+
+          if (isChildSession) {
+            return _ChildScaffoldWithNavBar(navigationShell: navigationShell);
+          }
           return _ScaffoldWithNavBar(navigationShell: navigationShell);
         },
         branches: [
@@ -121,7 +185,13 @@ GoRouter createRouter(AuthBloc authBloc, {required AuthRepository authRepository
             routes: [
               GoRoute(
                 path: '/home',
-                builder: (_, _) => const HomePlaceholderScreen(),
+                builder: (context, _) {
+                  final authState = context.watch<AuthBloc>().state;
+                  if (authState is AuthChildSessionActive) {
+                    return const ChildHomeScreen();
+                  }
+                  return const HomePlaceholderScreen();
+                },
               ),
             ],
           ),
@@ -129,7 +199,13 @@ GoRouter createRouter(AuthBloc authBloc, {required AuthRepository authRepository
             routes: [
               GoRoute(
                 path: '/practice',
-                builder: (_, _) => const PracticePlaceholderScreen(),
+                builder: (context, _) {
+                  final authState = context.watch<AuthBloc>().state;
+                  if (authState is AuthChildSessionActive) {
+                    return const ChildPracticePlaceholderScreen();
+                  }
+                  return const PracticePlaceholderScreen();
+                },
               ),
             ],
           ),
@@ -137,7 +213,13 @@ GoRouter createRouter(AuthBloc authBloc, {required AuthRepository authRepository
             routes: [
               GoRoute(
                 path: '/progress',
-                builder: (_, _) => const ProgressPlaceholderScreen(),
+                builder: (context, _) {
+                  final authState = context.watch<AuthBloc>().state;
+                  if (authState is AuthChildSessionActive) {
+                    return const ChildProgressPlaceholderScreen();
+                  }
+                  return const ProgressPlaceholderScreen();
+                },
               ),
             ],
           ),
@@ -145,7 +227,13 @@ GoRouter createRouter(AuthBloc authBloc, {required AuthRepository authRepository
             routes: [
               GoRoute(
                 path: '/profile',
-                builder: (_, _) => const ProfilePlaceholderScreen(),
+                builder: (context, _) {
+                  final authState = context.watch<AuthBloc>().state;
+                  if (authState is AuthChildSessionActive) {
+                    return const ChildProfilePlaceholderScreen();
+                  }
+                  return const ProfilePlaceholderScreen();
+                },
                 routes: [
                   GoRoute(
                     path: 'settings',
@@ -162,7 +250,7 @@ GoRouter createRouter(AuthBloc authBloc, {required AuthRepository authRepository
 }
 
 /// Shell widget that provides the bottom navigation bar around
-/// the currently active tab branch.
+/// the currently active tab branch (parent mode).
 class _ScaffoldWithNavBar extends StatelessWidget {
   const _ScaffoldWithNavBar({required this.navigationShell});
 
@@ -173,6 +261,30 @@ class _ScaffoldWithNavBar extends StatelessWidget {
     return Scaffold(
       body: navigationShell,
       bottomNavigationBar: AppBottomNavigation(
+        currentIndex: navigationShell.currentIndex,
+        onDestinationSelected: (index) {
+          navigationShell.goBranch(
+            index,
+            initialLocation: index == navigationShell.currentIndex,
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Shell widget that provides the child-mode bottom navigation bar
+/// around the currently active tab branch (child mode).
+class _ChildScaffoldWithNavBar extends StatelessWidget {
+  const _ChildScaffoldWithNavBar({required this.navigationShell});
+
+  final StatefulNavigationShell navigationShell;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: navigationShell,
+      bottomNavigationBar: ChildBottomNavigationBar(
         currentIndex: navigationShell.currentIndex,
         onDestinationSelected: (index) {
           navigationShell.goBranch(

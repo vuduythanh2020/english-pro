@@ -30,6 +30,16 @@ abstract final class AppConstants {
   /// Key for the child profile flag in secure storage (Story 2.4).
   static const String hasChildProfileKey = 'has_child_profile';
 
+  /// Key for the child JWT access token in secure storage (Story 2.5).
+  static const String childAccessTokenKey = 'child_access_token';
+
+  /// Key for the active child profile ID in secure storage (Story 2.5).
+  static const String activeChildIdKey = 'active_child_id';
+
+  /// Key for the parent access token preserved during a child session (Story 2.5).
+  /// Written when switching to child, cleared when switching back or logging out.
+  static const String parentAccessTokenKey = 'parent_access_token_snapshot';
+
   // ── Hive Box Names ─────────────────────────────────────────────────────
   /// Box for user settings / preferences.
   static const String settingsBox = 'settings';

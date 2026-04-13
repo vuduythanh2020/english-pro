@@ -28,6 +28,7 @@ sealed class AppException implements Exception {
       TimeoutException() => 'TimeoutException',
       UnknownException() => 'UnknownException',
       ProfileLimitReachedException() => 'ProfileLimitReachedException',
+      ChildProfileNotFoundException() => 'ChildProfileNotFoundException',
     };
   }
 }
@@ -105,5 +106,16 @@ class ProfileLimitReachedException extends AppException {
   const ProfileLimitReachedException({
     super.message = 'Bạn chỉ có thể tạo tối đa 3 hồ sơ trẻ em',
     super.statusCode = 422,
+  });
+}
+
+/// Child profile not found (404 CHILD_PROFILE_NOT_FOUND).
+///
+/// Thrown when switching to a child profile that doesn't exist or
+/// doesn't belong to the parent (Story 2.5).
+class ChildProfileNotFoundException extends AppException {
+  const ChildProfileNotFoundException({
+    super.message = 'Không tìm thấy hồ sơ trẻ em',
+    super.statusCode = 404,
   });
 }

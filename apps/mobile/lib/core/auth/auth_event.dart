@@ -59,3 +59,26 @@ class AuthConsentGranted extends AuthEvent {
 class AuthChildProfileCreated extends AuthEvent {
   const AuthChildProfileCreated();
 }
+
+/// Fired when the parent selects a child profile to start a child
+/// session (Story 2.5). The child JWT is obtained from the
+/// `switch-to-child` API endpoint.
+class AuthChildSessionStarted extends AuthEvent {
+  const AuthChildSessionStarted({
+    required this.childId,
+    required this.childJwt,
+  });
+
+  final String childId;
+  final String childJwt;
+
+  @override
+  List<Object?> get props => [childId, childJwt];
+}
+
+/// Fired when returning from child mode back to parent mode
+/// (Story 2.5). Restores the parent session and navigates
+/// to profile selection.
+class AuthChildSessionEnded extends AuthEvent {
+  const AuthChildSessionEnded();
+}

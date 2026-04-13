@@ -60,8 +60,53 @@ class SecureStorageService {
     return value == 'true';
   }
 
+  // ── Child JWT (Story 2.5) ──────────────────────────────────────────
+
+  /// Persists the child-specific JWT access token.
+  Future<void> saveChildJwt(String token) =>
+      _storage.write(key: AppConstants.childAccessTokenKey, value: token);
+
+  /// Returns the stored child JWT, or `null` if none exists.
+  Future<String?> getChildJwt() =>
+      _storage.read(key: AppConstants.childAccessTokenKey);
+
+  /// Removes the child JWT from secure storage.
+  Future<void> clearChildJwt() =>
+      _storage.delete(key: AppConstants.childAccessTokenKey);
+
+  // ── Active Child ID (Story 2.5) ────────────────────────────────────
+
+  /// Persists the active child profile ID.
+  Future<void> saveChildId(String childId) =>
+      _storage.write(key: AppConstants.activeChildIdKey, value: childId);
+
+  /// Returns the stored active child ID, or `null` if none exists.
+  Future<String?> getChildId() =>
+      _storage.read(key: AppConstants.activeChildIdKey);
+
+  /// Removes the active child ID from secure storage.
+  Future<void> clearChildId() =>
+      _storage.delete(key: AppConstants.activeChildIdKey);
+
+  // ── Parent Access Token Snapshot (Story 2.5) ──────────────────────
+  // Stores a snapshot of the parent's access token when switching to a child
+  // session, so it can be reliably restored on app restart even if the main
+  // accessTokenKey slot is modified during the child session.
+
+  /// Persists the parent access token snapshot.
+  Future<void> saveParentAccessToken(String token) =>
+      _storage.write(key: AppConstants.parentAccessTokenKey, value: token);
+
+  /// Returns the stored parent access token snapshot, or `null` if none.
+  Future<String?> getParentAccessToken() =>
+      _storage.read(key: AppConstants.parentAccessTokenKey);
+
+  /// Removes the parent access token snapshot from secure storage.
+  Future<void> clearParentAccessToken() =>
+      _storage.delete(key: AppConstants.parentAccessTokenKey);
+
   // ── Utility ────────────────────────────────────────────────────────
 
-  /// Removes all stored values (access + refresh tokens).
+  /// Removes all stored values (access + refresh tokens, child JWT, etc.).
   Future<void> clearAll() => _storage.deleteAll();
 }

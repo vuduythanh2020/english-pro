@@ -1,7 +1,9 @@
-/// Unit Tests - Story 1.5 & Story 2.4: AuthBloc
+/// Unit Tests - Story 1.5, Story 2.4 & Story 2.5: AuthBloc
 /// Tests validate that AuthBloc correctly manages authentication state
 /// using HydratedBloc pattern with SecureStorageService.
 library;
+
+import 'dart:convert';
 
 import 'package:bloc_test/bloc_test.dart';
 import 'package:english_pro/core/auth/auth_bloc.dart';
@@ -34,6 +36,18 @@ void main() {
     when(() => mockHydratedStorage.clear()).thenAnswer((_) async {});
 
     HydratedBloc.storage = mockHydratedStorage;
+
+    // Default stubs for child session storage (Story 2.5)
+    when(() => mockStorage.getChildJwt()).thenAnswer((_) async => null);
+    when(() => mockStorage.getChildId()).thenAnswer((_) async => null);
+    when(
+      () => mockStorage.saveChildJwt(any()),
+    ).thenAnswer((_) async {});
+    when(
+      () => mockStorage.saveChildId(any()),
+    ).thenAnswer((_) async {});
+    when(() => mockStorage.clearChildJwt()).thenAnswer((_) async {});
+    when(() => mockStorage.clearChildId()).thenAnswer((_) async {});
   });
 
   group('AuthBloc', () {
@@ -477,6 +491,291 @@ void main() {
             hasChildProfile: true,
           ),
         ],
+      );
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // Story 2.5 — Child Session Switching
+  // AuthChildSessionStarted / AuthChildSessionEnded tests
+  // ---------------------------------------------------------------------------
+  group(
+    'Story 2.5 — Child Session in AuthBloc',
+    () {
+      // Helper: create a JWT with exp N seconds in the future (base64url encoded)
+      String makeChildJwt({
+        required String childId,
+        required String parentId,
+        int expiresInSeconds = 3600,
+      }) {
+        final header = base64Url
+            .encode('{"alg":"HS256","typ":"JWT"}'.codeUnits)
+            .replaceAll('=', '');
+        final expiry =
+            (DateTime.now().millisecondsSinceEpoch ~/ 1000) + expiresInSeconds;
+        final payload = base64Url
+            .encode(
+              '{"sub":"$childId","childId":"$childId","parentId":"$parentId",'
+                      '"role":"child","exp":$expiry}'
+                  .codeUnits,
+            )
+            .replaceAll('=', '');
+        return '$header.$payload.fake-signature';
+      }
+
+      // FLUTTER-CHILD-SESSION-001
+      blocTest<AuthBloc, AuthState>(
+        'FLUTTER-CHILD-SESSION-001: AuthChildSessionStarted saves JWT/childId and emits AuthChildSessionActive',
+        build: () {
+          when(
+            () => mockStorage.saveChildJwt(any()),
+          ).thenAnswer((_) async {});
+          when(
+            () => mockStorage.saveChildId(any()),
+          ).thenAnswer((_) async {});
+          return AuthBloc(storageService: mockStorage);
+        },
+        seed: () => const AuthAuthenticated(accessToken: 'parent-token'),
+        act: (bloc) {
+          final jwt = makeChildJwt(
+            childId: 'child-uuid-1',
+            parentId: 'parent-uuid',
+          );
+          bloc.add(AuthChildSessionStarted(
+            childId: 'child-uuid-1',
+            childJwt: jwt,
+          ));
+        },
+        expect: () => [isA<AuthChildSessionActive>()],
+        verify: (_) {
+          verify(() => mockStorage.saveChildJwt(any())).called(1);
+          verify(() => mockStorage.saveChildId('child-uuid-1')).called(1);
+        },
+      );
+
+      // FLUTTER-CHILD-SESSION-002
+      blocTest<AuthBloc, AuthState>(
+        'FLUTTER-CHILD-SESSION-002: AuthChildSessionActive contains correct childId and parentId from JWT claims',
+        build: () {
+          when(
+            () => mockStorage.saveChildJwt(any()),
+          ).thenAnswer((_) async {});
+          when(
+            () => mockStorage.saveChildId(any()),
+          ).thenAnswer((_) async {});
+          return AuthBloc(storageService: mockStorage);
+        },
+        seed: () => const AuthAuthenticated(accessToken: 'parent-token'),
+        act: (bloc) {
+          final jwt = makeChildJwt(
+            childId: 'child-uuid-123',
+            parentId: 'parent-uuid-456',
+          );
+          bloc.add(AuthChildSessionStarted(
+            childId: 'child-uuid-123',
+            childJwt: jwt,
+          ));
+        },
+        expect: () => [
+          isA<AuthChildSessionActive>()
+              .having((s) => s.childId, 'childId', 'child-uuid-123')
+              .having((s) => s.parentId, 'parentId', 'parent-uuid-456')
+              .having(
+                (s) => s.parentAccessToken,
+                'parentAccessToken',
+                'parent-token',
+              ),
+        ],
+      );
+
+      // FLUTTER-CHILD-SESSION-003
+      blocTest<AuthBloc, AuthState>(
+        'FLUTTER-CHILD-SESSION-003: AuthChildSessionEnded clears child data and restores parent session',
+        build: () {
+          when(() => mockStorage.clearChildJwt()).thenAnswer((_) async {});
+          when(() => mockStorage.clearChildId()).thenAnswer((_) async {});
+          when(
+            () => mockStorage.getHasConsent(),
+          ).thenAnswer((_) async => true);
+          when(
+            () => mockStorage.getHasChildProfile(),
+          ).thenAnswer((_) async => true);
+          return AuthBloc(storageService: mockStorage);
+        },
+        seed: () {
+          final jwt = makeChildJwt(
+            childId: 'child-uuid-1',
+            parentId: 'parent-uuid',
+          );
+          return AuthChildSessionActive(
+            childJwt: jwt,
+            childId: 'child-uuid-1',
+            parentId: 'parent-uuid',
+            parentAccessToken: 'parent-token',
+          );
+        },
+        act: (bloc) => bloc.add(const AuthChildSessionEnded()),
+        expect: () => [isA<AuthAuthenticated>()],
+        verify: (bloc) {
+          verify(() => mockStorage.clearChildJwt()).called(1);
+          verify(() => mockStorage.clearChildId()).called(1);
+          final authenticated = bloc.state as AuthAuthenticated;
+          expect(authenticated.accessToken, 'parent-token');
+          expect(authenticated.hasConsent, true);
+          expect(authenticated.hasChildProfile, true);
+        },
+      );
+
+      // FLUTTER-CHILD-SESSION-004
+      blocTest<AuthBloc, AuthState>(
+        'FLUTTER-CHILD-SESSION-004: AuthChildSessionEnded falls back to storage when parentAccessToken missing',
+        build: () {
+          when(() => mockStorage.clearChildJwt()).thenAnswer((_) async {});
+          when(() => mockStorage.clearChildId()).thenAnswer((_) async {});
+          when(
+            () => mockStorage.getAccessToken(),
+          ).thenAnswer((_) async => 'stored-parent-token');
+          when(
+            () => mockStorage.getHasConsent(),
+          ).thenAnswer((_) async => false);
+          when(
+            () => mockStorage.getHasChildProfile(),
+          ).thenAnswer((_) async => true);
+          return AuthBloc(storageService: mockStorage);
+        },
+        // Seed with state that has no parentAccessToken
+        seed: () {
+          final jwt = makeChildJwt(
+            childId: 'child-uuid-1',
+            parentId: 'parent-uuid',
+          );
+          return AuthChildSessionActive(
+            childJwt: jwt,
+            childId: 'child-uuid-1',
+            parentId: 'parent-uuid',
+            parentAccessToken: null, // no parent token in state
+          );
+        },
+        act: (bloc) => bloc.add(const AuthChildSessionEnded()),
+        expect: () => [
+          isA<AuthAuthenticated>().having(
+            (s) => s.accessToken,
+            'accessToken',
+            'stored-parent-token',
+          ),
+        ],
+      );
+
+      // FLUTTER-CHILD-SESSION-005
+      blocTest<AuthBloc, AuthState>(
+        'FLUTTER-CHILD-SESSION-005: AuthChildSessionEnded emits AuthUnauthenticated when no parent token available',
+        build: () {
+          when(() => mockStorage.clearChildJwt()).thenAnswer((_) async {});
+          when(() => mockStorage.clearChildId()).thenAnswer((_) async {});
+          when(
+            () => mockStorage.getAccessToken(),
+          ).thenAnswer((_) async => null); // no token in storage
+          when(() => mockStorage.clearAll()).thenAnswer((_) async {});
+          return AuthBloc(storageService: mockStorage);
+        },
+        seed: () {
+          final jwt = makeChildJwt(
+            childId: 'child-uuid-1',
+            parentId: 'parent-uuid',
+          );
+          return AuthChildSessionActive(
+            childJwt: jwt,
+            childId: 'child-uuid-1',
+            parentId: 'parent-uuid',
+            parentAccessToken: null,
+          );
+        },
+        act: (bloc) => bloc.add(const AuthChildSessionEnded()),
+        expect: () => [const AuthUnauthenticated()],
+        verify: (_) {
+          verify(() => mockStorage.clearAll()).called(1);
+        },
+      );
+
+      // FLUTTER-CHILD-SESSION-006
+      blocTest<AuthBloc, AuthState>(
+        'FLUTTER-CHILD-SESSION-006: AuthStarted restores AuthChildSessionActive when valid child JWT in storage',
+        build: () {
+          final jwt = makeChildJwt(
+            childId: 'child-uuid-1',
+            parentId: 'parent-uuid',
+            expiresInSeconds: 3600,
+          );
+          when(
+            () => mockStorage.getAccessToken(),
+          ).thenAnswer((_) async => 'parent-token');
+          when(
+            () => mockStorage.getChildJwt(),
+          ).thenAnswer((_) async => jwt);
+          when(
+            () => mockStorage.getChildId(),
+          ).thenAnswer((_) async => 'child-uuid-1');
+          return AuthBloc(storageService: mockStorage);
+        },
+        act: (bloc) => bloc.add(const AuthStarted()),
+        expect: () => [
+          isA<AuthLoading>(),
+          isA<AuthChildSessionActive>()
+              .having((s) => s.childId, 'childId', 'child-uuid-1'),
+        ],
+      );
+
+      // FLUTTER-CHILD-SESSION-007
+      blocTest<AuthBloc, AuthState>(
+        'FLUTTER-CHILD-SESSION-007: AuthStarted falls through to AuthAuthenticated when child JWT is expired',
+        build: () {
+          // Create an already-expired JWT (expiry in the past)
+          final header = base64Url
+              .encode('{"alg":"HS256","typ":"JWT"}'.codeUnits)
+              .replaceAll('=', '');
+          final expiry =
+              (DateTime.now().millisecondsSinceEpoch ~/ 1000) - 100; // past
+          final payload = base64Url
+              .encode(
+                '{"sub":"child-uuid","childId":"child-uuid","parentId":"parent-uuid",'
+                        '"role":"child","exp":$expiry}'
+                    .codeUnits,
+              )
+              .replaceAll('=', '');
+          final expiredJwt = '$header.$payload.fake-sig';
+
+          when(
+            () => mockStorage.getAccessToken(),
+          ).thenAnswer((_) async => 'parent-token');
+          when(
+            () => mockStorage.getChildJwt(),
+          ).thenAnswer((_) async => expiredJwt);
+          when(
+            () => mockStorage.getChildId(),
+          ).thenAnswer((_) async => 'child-uuid');
+          when(
+            () => mockStorage.clearChildJwt(),
+          ).thenAnswer((_) async {});
+          when(
+            () => mockStorage.clearChildId(),
+          ).thenAnswer((_) async {});
+          when(
+            () => mockStorage.getHasConsent(),
+          ).thenAnswer((_) async => true);
+          when(
+            () => mockStorage.getHasChildProfile(),
+          ).thenAnswer((_) async => true);
+          return AuthBloc(storageService: mockStorage);
+        },
+        act: (bloc) => bloc.add(const AuthStarted()),
+        expect: () => [
+          isA<AuthLoading>(),
+          isA<AuthAuthenticated>(),
+        ],
+        verify: (_) {
+          verify(() => mockStorage.clearChildJwt()).called(1);
+          verify(() => mockStorage.clearChildId()).called(1);
+        },
       );
     },
   );

@@ -56,3 +56,54 @@ class AuthAuthenticated extends AuthState {
 class AuthUnauthenticated extends AuthState {
   const AuthUnauthenticated();
 }
+
+/// A child session is active — the parent selected a child profile
+/// and a child-specific JWT was issued (Story 2.5).
+///
+/// GoRouter differentiates between [AuthAuthenticated] (parent mode)
+/// and [AuthChildSessionActive] (child mode) to route to the
+/// correct home screen.
+class AuthChildSessionActive extends AuthState {
+  const AuthChildSessionActive({
+    required this.childJwt,
+    required this.childId,
+    required this.parentId,
+    this.parentAccessToken,
+  });
+
+  /// The child-specific JWT used for API calls in child mode.
+  final String childJwt;
+
+  /// The active child profile ID.
+  final String childId;
+
+  /// The parent user ID (extracted from the child JWT claims).
+  final String parentId;
+
+  /// The parent's access token, preserved so we can restore
+  /// the parent session when the child session ends.
+  final String? parentAccessToken;
+
+  /// Creates a copy with optionally overridden fields.
+  AuthChildSessionActive copyWith({
+    String? childJwt,
+    String? childId,
+    String? parentId,
+    String? parentAccessToken,
+  }) {
+    return AuthChildSessionActive(
+      childJwt: childJwt ?? this.childJwt,
+      childId: childId ?? this.childId,
+      parentId: parentId ?? this.parentId,
+      parentAccessToken: parentAccessToken ?? this.parentAccessToken,
+    );
+  }
+
+  @override
+  List<Object?> get props => [
+    childJwt,
+    childId,
+    parentId,
+    parentAccessToken,
+  ];
+}

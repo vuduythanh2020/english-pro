@@ -288,8 +288,12 @@ describe('Story 2.2: AuthService.login() @P0 @Integration', () => {
       warn: jest.fn(),
       debug: jest.fn(),
     };
+    // AuthService constructor: (supabaseService, prisma, configService, logger)
+    // login() only uses supabaseService + logger, so minimal mocks for prisma/configService
     return new AuthService(
       supabaseMock as unknown as never,
+      {} as unknown as never,
+      {} as unknown as never,
       loggerMock as unknown as never,
     );
   }
@@ -451,8 +455,12 @@ describe('Story 2.2: AuthService.refresh() @P0 @Integration', () => {
       warn: jest.fn(),
       debug: jest.fn(),
     };
+    // AuthService constructor: (supabaseService, prisma, configService, logger)
+    // refresh() only uses supabaseService + logger, so minimal mocks for prisma/configService
     return new AuthService(
       supabaseMock as unknown as never,
+      {} as unknown as never,
+      {} as unknown as never,
       loggerMock as unknown as never,
     );
   }
@@ -714,8 +722,11 @@ describe('Story 2.2: Security Compliance @P1 @Static', () => {
         warn: jest.fn(),
         debug: jest.fn(),
       };
+      // AuthService constructor: (supabaseService, prisma, configService, logger)
       const service = new AuthService(
         mockSupabase as unknown as never,
+        {} as unknown as never,
+        {} as unknown as never,
         loggerMock as unknown as never,
       );
 

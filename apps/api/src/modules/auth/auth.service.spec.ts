@@ -1,8 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { HttpException, HttpStatus } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { AuthService } from './auth.service';
 import { SupabaseService } from './supabase/supabase.service';
+import { PrismaService } from '../../prisma/prisma.service';
+import * as jwt from 'jsonwebtoken';
+
+const TEST_JWT_SECRET = 'test-jwt-secret-for-unit-tests';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -24,11 +29,29 @@ describe('AuthService', () => {
     onModuleDestroy: jest.fn(),
   };
 
+  const mockPrismaService = {
+    childProfile: {
+      findFirst: jest.fn(),
+    },
+    parent: {
+      findUnique: jest.fn(),
+    },
+  };
+
+  const mockConfigService = {
+    get: jest.fn((key: string) => {
+      if (key === 'SUPABASE_JWT_SECRET') return TEST_JWT_SECRET;
+      return undefined;
+    }),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
         { provide: SupabaseService, useValue: mockSupabaseService },
+        { provide: PrismaService, useValue: mockPrismaService },
+        { provide: ConfigService, useValue: mockConfigService },
         { provide: WINSTON_MODULE_NEST_PROVIDER, useValue: mockLogger },
       ],
     }).compile();
@@ -37,6 +60,11 @@ describe('AuthService', () => {
     supabaseService = module.get(SupabaseService);
 
     jest.clearAllMocks();
+    // Restore default config mock
+    mockConfigService.get.mockImplementation((key: string) => {
+      if (key === 'SUPABASE_JWT_SECRET') return TEST_JWT_SECRET;
+      return undefined;
+    });
   });
 
   describe('register', () => {
@@ -517,6 +545,140 @@ describe('AuthService', () => {
           HttpStatus.SERVICE_UNAVAILABLE,
         ),
       );
+    });
+  });
+
+  describe('generateChildJwt', () => {
+    const parentId = 'parent-uuid-123';
+    const childId = 'child-uuid-456';
+
+    it('should generate valid child JWT with correct claims', async () => {
+      mockPrismaService.childProfile.findFirst.mockResolvedValue({
+        id: childId,
+        parentId,
+        displayName: 'Bé Nam',
+        avatarId: 3,
+        isActive: true,
+      });
+
+      const result = await service.generateChildJwt(parentId, childId);
+
+      expect(result.childId).toBe(childId);
+      expect(result.expiresIn).toBe(3600);
+      expect(result.childProfile).toEqual({
+        displayName: 'Bé Nam',
+        avatarId: 3,
+      });
+
+      // Verify JWT claims
+      const decoded = jwt.verify(result.accessToken, TEST_JWT_SECRET) as any;
+      expect(decoded.sub).toBe(childId);
+      expect(decoded.role).toBe('child');
+      expect(decoded.childId).toBe(childId);
+      expect(decoded.parentId).toBe(parentId);
+      expect(decoded.exp).toBeDefined();
+    });
+
+    it('should throw 404 when child not owned by parent', async () => {
+      mockPrismaService.childProfile.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.generateChildJwt(parentId, childId),
+      ).rejects.toThrow(HttpException);
+
+      try {
+        await service.generateChildJwt(parentId, childId);
+      } catch (e) {
+        expect((e as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
+        const response = (e as HttpException).getResponse() as any;
+        expect(response.error).toBe('CHILD_PROFILE_NOT_FOUND');
+      }
+    });
+
+    it('should throw 404 when child profile is inactive', async () => {
+      // findFirst with isActive: true will return null for inactive profiles
+      mockPrismaService.childProfile.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.generateChildJwt(parentId, childId),
+      ).rejects.toThrow(HttpException);
+    });
+
+    it('should throw 500 when JWT secret is not configured', async () => {
+      mockPrismaService.childProfile.findFirst.mockResolvedValue({
+        id: childId,
+        parentId,
+        displayName: 'Bé Nam',
+        avatarId: 1,
+        isActive: true,
+      });
+      mockConfigService.get.mockReturnValue(undefined);
+
+      await expect(
+        service.generateChildJwt(parentId, childId),
+      ).rejects.toThrow(HttpException);
+
+      try {
+        await service.generateChildJwt(parentId, childId);
+      } catch (e) {
+        expect((e as HttpException).getStatus()).toBe(
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+    });
+  });
+
+  describe('generateParentSessionToken', () => {
+    const parentId = 'parent-uuid-123';
+
+    it('should generate valid parent JWT', async () => {
+      mockPrismaService.parent.findUnique.mockResolvedValue({
+        id: parentId,
+        authUserId: 'auth-user-uuid',
+        email: 'parent@example.com',
+      });
+
+      const result = await service.generateParentSessionToken(parentId);
+
+      expect(result.role).toBe('parent');
+      expect(result.accessToken).toBeDefined();
+
+      // Verify JWT claims
+      const decoded = jwt.verify(result.accessToken, TEST_JWT_SECRET) as any;
+      expect(decoded.sub).toBe('auth-user-uuid');
+      expect(decoded.user_role).toBe('PARENT');
+      expect(decoded.user_id).toBe(parentId);
+      expect(decoded.exp).toBeDefined();
+    });
+
+    it('should throw 404 when parent not found', async () => {
+      mockPrismaService.parent.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.generateParentSessionToken(parentId),
+      ).rejects.toThrow(HttpException);
+
+      try {
+        await service.generateParentSessionToken(parentId);
+      } catch (e) {
+        expect((e as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
+      }
+    });
+
+    it('should throw 500 when JWT secret is not configured', async () => {
+      mockConfigService.get.mockReturnValue(undefined);
+
+      await expect(
+        service.generateParentSessionToken(parentId),
+      ).rejects.toThrow(HttpException);
+
+      try {
+        await service.generateParentSessionToken(parentId);
+      } catch (e) {
+        expect((e as HttpException).getStatus()).toBe(
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
     });
   });
 });

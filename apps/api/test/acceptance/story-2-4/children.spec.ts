@@ -197,8 +197,19 @@ describe('Story 2.4: ChildrenService @P0 @Integration', () => {
       debug: jest.fn(),
       verbose: jest.fn(),
     };
+
+    // ChildrenService uses this.prisma.$transaction(callback, options)
+    // The callback receives a `tx` object with the same shape as prisma
+    // We delegate tx.childProfile.* to prismaMock.childProfile.*
+    const prismaMockWithTransaction = {
+      ...prismaMock,
+      $transaction: jest.fn(async (callback: (tx: typeof prismaMock) => Promise<unknown>) => {
+        return callback(prismaMock);
+      }),
+    };
+
     return new ChildrenService(
-      prismaMock as unknown as never,
+      prismaMockWithTransaction as unknown as never,
       loggerMock as unknown as never,
     );
   }
