@@ -53,36 +53,39 @@ void main() {
   }
 
   group('Story 1.6: SettingsScreen @P0 @Widget', () {
+    // NOTE: SettingsScreen was rewritten in Story 2.7 with Vietnamese labels.
+    // Tests updated to match the current UI text.
+
     testWidgets(
       '1.6-SETTINGS-001: renders theme toggle section',
       (tester) async {
         await tester.pumpWidget(buildSubject());
 
-        expect(find.text('Appearance'), findsOneWidget);
-        expect(find.text('Settings'), findsOneWidget);
+        expect(find.text('GIAO DIỆN'), findsOneWidget);
+        expect(find.text('Cài đặt'), findsOneWidget);
       },
     );
 
     testWidgets(
-      '1.6-SETTINGS-002: shows Light, Dark, System options',
+      '1.6-SETTINGS-002: shows Sáng, Tối, Hệ thống options',
       (tester) async {
         await tester.pumpWidget(buildSubject());
 
-        expect(find.text('Light'), findsOneWidget);
-        expect(find.text('Dark'), findsOneWidget);
-        expect(find.text('System'), findsOneWidget);
+        expect(find.text('Sáng'), findsOneWidget);
+        expect(find.text('Tối'), findsOneWidget);
+        expect(find.text('Hệ thống'), findsOneWidget);
       },
     );
 
     testWidgets(
-      '1.6-SETTINGS-003: tapping Dark calls '
+      '1.6-SETTINGS-003: tapping Tối calls '
       'setThemeMode(dark)',
       (tester) async {
         final cubit = ThemeCubit();
         addTearDown(cubit.close);
         await tester.pumpWidget(buildSubject(cubit: cubit));
 
-        await tester.tap(find.text('Dark'));
+        await tester.tap(find.text('Tối'));
         await tester.pump();
 
         expect(cubit.state.themeMode, ThemeMode.dark);
@@ -90,14 +93,14 @@ void main() {
     );
 
     testWidgets(
-      '1.6-SETTINGS-004: tapping System calls '
+      '1.6-SETTINGS-004: tapping Hệ thống calls '
       'setThemeMode(system)',
       (tester) async {
         final cubit = ThemeCubit();
         addTearDown(cubit.close);
         await tester.pumpWidget(buildSubject(cubit: cubit));
 
-        await tester.tap(find.text('System'));
+        await tester.tap(find.text('Hệ thống'));
         await tester.pump();
 
         expect(cubit.state.themeMode, ThemeMode.system);
@@ -110,9 +113,9 @@ void main() {
       (tester) async {
         await tester.pumpWidget(buildSubject());
 
-        expect(find.text('Performance'), findsOneWidget);
+        expect(find.text('HIỆU SUẤT'), findsOneWidget);
         expect(
-          find.text('Performance Tier'),
+          find.text('Mức hiệu suất'),
           findsOneWidget,
         );
       },
