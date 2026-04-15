@@ -3,11 +3,13 @@ import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { WinstonModule } from 'nest-winston';
+import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './prisma/prisma.module';
 import { CommonModule } from './common/common.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ConsentModule } from './modules/consent/consent.module';
 import { ChildrenModule } from './modules/children/children.module';
+import { UserModule } from './modules/user/user.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { createLoggerConfig } from './config/logger.config';
@@ -21,11 +23,15 @@ import { createLoggerConfig } from './config/logger.config';
     // a DI resolution error at runtime.
     WinstonModule.forRoot(createLoggerConfig()),
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60000, limit: 60 }]),
+    // F05 fix: ScheduleModule.forRoot() belongs in AppModule (root), not feature modules.
+    // This ensures a single scheduler instance across the application.
+    ScheduleModule.forRoot(),
     PrismaModule,
     CommonModule,
     AuthModule,
     ConsentModule,
     ChildrenModule,
+    UserModule,
   ],
   controllers: [AppController],
   providers: [AppService, { provide: APP_GUARD, useClass: ThrottlerGuard }],

@@ -78,19 +78,22 @@ model Parent {
 }
 
 model ChildProfile {
-  id                String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  parentId          String    @map("parent_id") @db.Uuid
-  displayName       String    @map("display_name")
-  avatarId          Int       @default(1) @map("avatar_id")
-  age               Int?
-  level             String    @default("beginner")
-  xpTotal           Int       @default(0) @map("xp_total")
-  currentStreak     Int       @default(0) @map("current_streak")
-  longestStreak     Int       @default(0) @map("longest_streak")
-  lastActiveDate    DateTime? @map("last_active_date")
-  isActive          Boolean   @default(true) @map("is_active")
-  createdAt         DateTime  @default(now()) @map("created_at")
-  updatedAt         DateTime  @updatedAt @map("updated_at")
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  parentId             String    @map("parent_id") @db.Uuid
+  displayName          String    @map("display_name")
+  avatarId             Int       @default(1) @map("avatar_id")
+  age                  Int?
+  level                String    @default("beginner")
+  xpTotal              Int       @default(0) @map("xp_total")
+  currentStreak        Int       @default(0) @map("current_streak")
+  longestStreak        Int       @default(0) @map("longest_streak")
+  lastActiveDate       DateTime? @map("last_active_date")
+  isActive             Boolean   @default(true) @map("is_active")
+  // Story 2.7: Auto-delete inactive accounts tracking (FR26)
+  lastActivityAt       DateTime  @default(now()) @map("last_activity_at")
+  deletionWarningSent  Boolean   @default(false) @map("deletion_warning_sent")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
 
   parent               Parent                @relation(fields: [parentId], references: [id], onDelete: Cascade)
   conversations        ConversationSession[]
@@ -101,6 +104,7 @@ model ChildProfile {
   safetyFlags          SafetyFlag[]
 
   @@index([parentId])
+  @@index([lastActivityAt])
   @@map("child_profiles")
 }
 

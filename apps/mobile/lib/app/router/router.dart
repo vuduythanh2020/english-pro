@@ -23,6 +23,12 @@ import 'package:english_pro/features/onboarding/repositories/consent_repository.
 import 'package:english_pro/features/onboarding/view/child_profile_setup_screen.dart';
 import 'package:english_pro/features/onboarding/view/consent_screen.dart';
 import 'package:english_pro/features/onboarding/view/profile_selection_screen.dart';
+import 'package:english_pro/features/settings/bloc/privacy_data_bloc.dart';
+import 'package:english_pro/features/settings/bloc/privacy_data_event.dart';
+import 'package:english_pro/features/settings/repositories/privacy_data_repository.dart';
+import 'package:english_pro/features/settings/view/child_data_view_screen.dart';
+import 'package:english_pro/features/settings/view/privacy_data_screen.dart';
+import 'package:english_pro/features/settings/view/privacy_policy_screen.dart';
 import 'package:english_pro/features/settings/view/settings_screen.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -32,6 +38,9 @@ import 'package:go_router/go_router.dart';
 /// Parent-only routes that a child session cannot access.
 const _parentOnlyRoutes = {
   '/settings',
+  '/settings/privacy-data',
+  '/settings/child-data',
+  '/settings/privacy-policy',
   '/consent',
   '/child-profile-setup',
   '/profile-selection',
@@ -167,6 +176,52 @@ GoRouter createRouter(AuthBloc authBloc, {required AuthRepository authRepository
           )..add(const ProfileSelectionStarted()),
           child: const ProfileSelectionScreen(),
         ),
+      ),
+
+      // ── Settings routes (Story 2.7) ─────────────────────────────
+      GoRoute(
+        path: '/settings',
+        name: 'settings',
+        builder: (_, _) => const SettingsScreen(),
+        routes: [
+          GoRoute(
+            path: 'privacy-data',
+            name: 'privacy-data',
+            builder: (context, state) {
+              final childId = state.extra as String? ?? '';
+              return BlocProvider(
+                create: (_) => PrivacyDataBloc(
+                  repository: PrivacyDataRepository(
+                    dio: context.read<Dio>(),
+                  ),
+                  childId: childId,
+                )..add(const PrivacyDataStarted()),
+                child: const PrivacyDataScreen(),
+              );
+            },
+          ),
+          GoRoute(
+            path: 'child-data',
+            name: 'child-data',
+            builder: (context, state) {
+              final childId = state.extra as String? ?? '';
+              return BlocProvider(
+                create: (_) => PrivacyDataBloc(
+                  repository: PrivacyDataRepository(
+                    dio: context.read<Dio>(),
+                  ),
+                  childId: childId,
+                )..add(const PrivacyDataStarted()),
+                child: const ChildDataViewScreen(),
+              );
+            },
+          ),
+          GoRoute(
+            path: 'privacy-policy',
+            name: 'privacy-policy',
+            builder: (_, _) => const PrivacyPolicyScreen(),
+          ),
+        ],
       ),
 
       // ── Tab navigation via StatefulShellRoute ────────────────────
