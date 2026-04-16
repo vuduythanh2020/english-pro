@@ -40,7 +40,7 @@ class ChildSwitchRepository {
   Future<ChildSwitchResult> switchToChild(String childId) async {
     try {
       final response = await _dio.post<Map<String, dynamic>>(
-        '/api/v1/auth/switch-to-child',
+        '/auth/switch-to-child',
         data: {'childId': childId},
       );
 
@@ -75,7 +75,7 @@ class ChildSwitchRepository {
   Future<ParentSwitchResult> switchToParent() async {
     try {
       final response = await _dio.post<Map<String, dynamic>>(
-        '/api/v1/auth/switch-to-parent',
+        '/auth/switch-to-parent',
       );
 
       final data = response.data?['data'];

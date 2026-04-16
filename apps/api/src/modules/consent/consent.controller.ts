@@ -13,7 +13,7 @@ import {
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { RequestUser } from '../../common/types/jwt-payload.type';
+import type { RequestUser } from '../../common/types/jwt-payload.type';
 import { ConsentService } from './consent.service';
 import { CreateConsentDto } from './dto/create-consent.dto';
 
@@ -45,9 +45,9 @@ function extractIpAddress(req: {
 }
 
 @ApiTags('consent')
-@Controller('api/v1/consent')
+@Controller('consent')
 export class ConsentController {
-  constructor(private readonly consentService: ConsentService) {}
+  constructor(private readonly consentService: ConsentService) { }
 
   @Post()
   @Roles('PARENT')

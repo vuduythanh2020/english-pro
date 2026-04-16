@@ -26,7 +26,7 @@
         "supabase:start": "npx supabase start --workdir infra/supabase",
         "supabase:stop": "npx supabase stop --workdir infra/supabase",
         "supabase:status": "npx supabase status --workdir infra/supabase",
-        "dev:infra": "pnpm docker:up && pnpm supabase:start",
+        "dev:infra": "pnpm docker:up && pnpm supabase:start && pnpm --filter english-pro-api prisma:migrate:deploy",
         "dev:infra:stop": "pnpm docker:down && pnpm supabase:stop"
     },
     "pnpm": {

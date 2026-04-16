@@ -7,6 +7,12 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // Enable CORS for local development (Flutter web runs on different port)
+  app.enableCors({
+    origin: true,
+    credentials: true,
+  });
+
   // Use Winston as the application logger
   app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
 

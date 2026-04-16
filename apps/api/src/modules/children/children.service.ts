@@ -20,7 +20,7 @@ export class ChildrenService {
     private readonly prisma: PrismaService,
     @Inject(WINSTON_MODULE_NEST_PROVIDER)
     private readonly logger: LoggerService,
-  ) {}
+  ) { }
 
   /**
    * Creates a new child profile for the given parent.
@@ -31,11 +31,31 @@ export class ChildrenService {
    *
    * Throws `UnprocessableEntityException('PROFILE_LIMIT_REACHED')` when limit is exceeded.
    */
+  /**
+   * Resolve the internal parents.id from either parents.id or auth_user_id.
+   */
+  private async resolveParentId(idOrAuthId: string): Promise<string> {
+    const byId = await this.prisma.parent.findUnique({
+      where: { id: idOrAuthId },
+      select: { id: true },
+    });
+    if (byId) return byId.id;
+
+    const byAuth = await this.prisma.parent.findUnique({
+      where: { authUserId: idOrAuthId },
+      select: { id: true },
+    });
+    if (byAuth) return byAuth.id;
+
+    throw new HttpException('Parent record not found', HttpStatus.NOT_FOUND);
+  }
+
   async createChildProfile(
-    parentId: string,
+    parentIdOrAuthId: string,
     dto: CreateChildDto,
   ): Promise<ChildProfileDto> {
     try {
+      const parentId = await this.resolveParentId(parentIdOrAuthId);
       const profile = await this.prisma.$transaction(
         async (tx) => {
           // Count existing profiles INSIDE the transaction so the read
@@ -86,8 +106,7 @@ export class ChildrenService {
       }
 
       this.logger.error(
-        `Failed to create child profile for parent ${parentId}: ${
-          error instanceof Error ? error.message : 'Unknown error'
+        `Failed to create child profile for parent ${parentIdOrAuthId}: ${error instanceof Error ? error.message : 'Unknown error'
         }`,
         undefined,
         'ChildrenService',
@@ -105,8 +124,9 @@ export class ChildrenService {
    *
    * Ordered by creation date ascending (oldest first).
    */
-  async getChildProfiles(parentId: string): Promise<ChildProfileDto[]> {
+  async getChildProfiles(parentIdOrAuthId: string): Promise<ChildProfileDto[]> {
     try {
+      const parentId = await this.resolveParentId(parentIdOrAuthId);
       const profiles = await this.prisma.childProfile.findMany({
         where: { parentId, isActive: true },
         orderBy: { createdAt: 'asc' },
@@ -123,8 +143,7 @@ export class ChildrenService {
       }));
     } catch (error) {
       this.logger.error(
-        `Failed to get child profiles for parent ${parentId}: ${
-          error instanceof Error ? error.message : 'Unknown error'
+        `Failed to get child profiles for parent ${parentIdOrAuthId}: ${error instanceof Error ? error.message : 'Unknown error'
         }`,
         undefined,
         'ChildrenService',

@@ -21,7 +21,7 @@ import { ChildProfileDto } from './dto/child-profile.dto';
 
 @ApiTags('children')
 @UseGuards(AuthGuard, RolesGuard)
-@Controller('api/v1/children')
+@Controller('children')
 export class ChildrenController {
     constructor(private readonly childrenService: ChildrenService) { }
 

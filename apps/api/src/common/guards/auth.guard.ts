@@ -4,17 +4,21 @@ import {
   ExecutionContext,
   UnauthorizedException,
   Inject,
+  OnModuleInit,
 } from '@nestjs/common';
 import type { LoggerService } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import * as jwt from 'jsonwebtoken';
+import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { JwtPayload, RequestUser } from '../types/jwt-payload.type';
 
 @Injectable()
-export class AuthGuard implements CanActivate {
+export class AuthGuard implements CanActivate, OnModuleInit {
+  private jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
+
   constructor(
     private readonly reflector: Reflector,
     private readonly configService: ConfigService,
@@ -22,7 +26,17 @@ export class AuthGuard implements CanActivate {
     private readonly logger: LoggerService,
   ) { }
 
-  canActivate(context: ExecutionContext): boolean {
+  onModuleInit() {
+    // Build JWKS endpoint from SUPABASE_URL for ES256 verification
+    const supabaseUrl = this.configService.get<string>('SUPABASE_URL');
+    if (supabaseUrl) {
+      const jwksUrl = new URL('/auth/v1/.well-known/jwks.json', supabaseUrl);
+      this.jwks = createRemoteJWKSet(jwksUrl);
+      this.logger.log?.('JWKS endpoint configured: ' + jwksUrl.toString());
+    }
+  }
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     // Skip auth for @Public() endpoints
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
@@ -35,15 +49,7 @@ export class AuthGuard implements CanActivate {
     if (!token) throw new UnauthorizedException('Missing authorization token');
 
     try {
-      const secret = this.configService.get<string>('SUPABASE_JWT_SECRET');
-      if (!secret) {
-        this.logger.error(
-          'SUPABASE_JWT_SECRET is not configured — check your .env file',
-        );
-        throw new UnauthorizedException('Authentication service unavailable');
-      }
-
-      const payload = jwt.verify(token, secret) as JwtPayload;
+      const payload = await this.verifyToken(token);
 
       // Reject tokens without exp
       if (!payload.exp) {
@@ -85,8 +91,41 @@ export class AuthGuard implements CanActivate {
       if (error instanceof jwt.JsonWebTokenError) {
         throw new UnauthorizedException('Invalid token');
       }
-      throw new UnauthorizedException('Authentication failed');
+      // jose errors
+      if ((error as any)?.code === 'ERR_JWT_EXPIRED') {
+        throw new UnauthorizedException('Token expired');
+      }
+      this.logger.error?.('JWT verification failed: ' + (error as Error).message);
+      throw new UnauthorizedException('Invalid token');
     }
+  }
+
+  /**
+   * Try ES256 (JWKS) first, fall back to HS256 (shared secret).
+   * This supports both Supabase CLI v2 (ES256) and production/older setups (HS256).
+   */
+  private async verifyToken(token: string): Promise<JwtPayload> {
+    // Decode header to check algorithm
+    const headerB64 = token.split('.')[0];
+    const header = JSON.parse(
+      Buffer.from(headerB64, 'base64url').toString('utf8'),
+    );
+
+    if (header.alg === 'ES256' && this.jwks) {
+      // Verify with JWKS (asymmetric)
+      const { payload } = await jwtVerify(token, this.jwks);
+      return payload as unknown as JwtPayload;
+    }
+
+    // Fall back to HS256 with shared secret
+    const secret = this.configService.get<string>('SUPABASE_JWT_SECRET');
+    if (!secret) {
+      this.logger.error?.(
+        'SUPABASE_JWT_SECRET is not configured — check your .env file',
+      );
+      throw new UnauthorizedException('Authentication service unavailable');
+    }
+    return jwt.verify(token, secret) as JwtPayload;
   }
 
   private extractToken(request: any): string | null {

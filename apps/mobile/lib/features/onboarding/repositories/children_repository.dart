@@ -21,7 +21,7 @@ class ChildrenRepository {
   }) async {
     try {
       final response = await _dio.post<Map<String, dynamic>>(
-        '/api/v1/children',
+        '/children',
         data: {
           'displayName': displayName,
           'avatarId': avatarId,
@@ -48,7 +48,7 @@ class ChildrenRepository {
   Future<List<ChildProfile>> getChildProfiles() async {
     try {
       final response = await _dio.get<Map<String, dynamic>>(
-        '/api/v1/children',
+        '/children',
       );
 
       // Use 'is' pattern match to safely handle unexpected response shapes.

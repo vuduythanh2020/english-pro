@@ -26,7 +26,7 @@ import { ChildDataResponseDto } from './dto/child-data.dto';
  */
 @ApiTags('users')
 @UseGuards(AuthGuard, RolesGuard)
-@Controller('api/v1/users')
+@Controller('users')
 export class UserController {
     constructor(private readonly userService: UserService) { }
 

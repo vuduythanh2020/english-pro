@@ -20,7 +20,7 @@ class PrivacyDataRepository {
   Future<ChildDataModel> getChildData(String childId) async {
     try {
       final response = await _dio.get<Map<String, dynamic>>(
-        '/api/v1/users/children/$childId/data',
+        '/users/children/$childId/data',
       );
 
       final raw = response.data?['data'];
@@ -41,7 +41,7 @@ class PrivacyDataRepository {
   Future<Uint8List> exportChildData(String childId) async {
     try {
       final response = await _dio.get<List<int>>(
-        '/api/v1/users/children/$childId/export',
+        '/users/children/$childId/export',
         options: Options(responseType: ResponseType.bytes),
       );
 
@@ -57,7 +57,7 @@ class PrivacyDataRepository {
   Future<void> deleteChildAccount(String childId) async {
     try {
       await _dio.delete<Map<String, dynamic>>(
-        '/api/v1/users/children/$childId',
+        '/users/children/$childId',
       );
     } on DioException catch (e) {
       throw _mapDioError(e);

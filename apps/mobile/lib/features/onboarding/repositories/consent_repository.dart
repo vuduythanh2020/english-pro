@@ -20,7 +20,7 @@ class ConsentRepository {
   }) async {
     try {
       final response = await _dio.post<Map<String, dynamic>>(
-        '/api/v1/consent',
+        '/consent',
         data: {
           'childAge': childAge,
           'consentVersion': consentVersion,
@@ -45,7 +45,7 @@ class ConsentRepository {
   Future<Map<String, dynamic>?> getConsent() async {
     try {
       final response = await _dio.get<Map<String, dynamic>>(
-        '/api/v1/consent',
+        '/consent',
       );
 
       return response.data?['data'] as Map<String, dynamic>?;

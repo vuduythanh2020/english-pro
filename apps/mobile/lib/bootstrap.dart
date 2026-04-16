@@ -10,6 +10,7 @@ import 'package:english_pro/core/network/connectivity_cubit.dart';
 import 'package:english_pro/core/network/connectivity_service.dart';
 import 'package:english_pro/core/storage/hive_service.dart';
 import 'package:english_pro/core/storage/secure_storage_service.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/widgets.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:path_provider/path_provider.dart';
@@ -63,10 +64,16 @@ Future<void> bootstrap(
   Bloc.observer = const AppBlocObserver();
 
   // ── Initialise HydratedBloc storage ────────────────────────────────
-  final storageDir = await getApplicationDocumentsDirectory();
-  HydratedBloc.storage = await HydratedStorage.build(
-    storageDirectory: HydratedStorageDirectory(storageDir.path),
-  );
+  if (kIsWeb) {
+    HydratedBloc.storage = await HydratedStorage.build(
+      storageDirectory: HydratedStorageDirectory.web,
+    );
+  } else {
+    final storageDir = await getApplicationDocumentsDirectory();
+    HydratedBloc.storage = await HydratedStorage.build(
+      storageDirectory: HydratedStorageDirectory(storageDir.path),
+    );
+  }
 
   // ── Initialise Hive ────────────────────────────────────────────────
   final hiveService = HiveService();

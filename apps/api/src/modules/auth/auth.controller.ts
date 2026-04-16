@@ -24,9 +24,9 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { SwitchChildDto } from './dto/switch-child.dto';
 
 @ApiTags('auth')
-@Controller('api/v1/auth')
+@Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   @Post('register')
   @Public()
