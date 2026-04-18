@@ -77,7 +77,7 @@ pnpm api:dev
 pnpm worker:dev
 
 # Flutter App (terminal 3)
-cd apps/mobile && flutter run
+cd apps/mobile && flutter run --flavor development --target lib/main_development.dart
 ```
 
 ### Dừng Infrastructure
